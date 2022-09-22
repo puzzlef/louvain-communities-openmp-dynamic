@@ -85,7 +85,6 @@ template <class G, class K, class V>
 void louvainAggregateOmp(G& a, vector2d<K>& vcs, vector2d<V>& vcout, const G& x, const vector<K>& vcom) {
   K S = x.span();
   auto comv = louvainCommunityVertices(x, vcom);
-  #pragma omp parallel for schedule(auto)
   for (K c=0; c<comv.size(); ++c) {
     if (comv[c].empty()) continue;
     a.addVertex(c);
