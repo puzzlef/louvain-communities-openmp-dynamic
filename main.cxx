@@ -10,6 +10,18 @@ using namespace std;
 
 
 
+// You can define datatype with -DTYPE=...
+#ifndef TYPE
+#define TYPE float
+#endif
+// You can define number of threads with -DMAX_THREADS=...
+#ifndef MAX_THREADS
+#define MAX_THREADS 12
+#endif
+
+
+
+
 template <class G, class K, class V>
 double getModularity(const G& x, const LouvainResult<K>& a, V M) {
   auto fc = [&](auto u) { return a.membership[u]; };
@@ -113,15 +125,17 @@ void runLouvain(const G& x, int repeat) {
 
 int main(int argc, char **argv) {
   using K = int;
-  using V = float;
+  using V = TYPE;
   char *file = argv[1];
   int repeat = argc>2? stoi(argv[2]) : 5;
   OutDiGraph<K, None, V> x; V w = 1;
   printf("Loading graph %s ...\n", file);
   readMtxW(x, file); println(x);
-  auto y  = symmetricize(x); print(y); printf(" (symmetricize)\n");
-  auto fl = [](auto u) { return true; };
+  auto y = symmetricize(x); print(y); printf(" (symmetricize)\n");
+  // auto fl = [](auto u) { return true; };
   // selfLoopU(y, w, fl); print(y); printf(" (selfLoopAllVertices)\n");
+  omp_set_num_threads(MAX_THREADS);
+  printf("OMP_NUM_THREADS=%d\n", MAX_THREADS);
   runLouvain(y, repeat);
   printf("\n");
   return 0;
