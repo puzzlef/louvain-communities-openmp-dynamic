@@ -16,6 +16,31 @@ using std::min;
 
 
 
+// LOUVAIN-CHANGE-COMMUNITY
+// ------------------------
+
+/**
+ * Move vertex to another community C.
+ * @param vcom community each vertex belongs to (updated)
+ * @param ctot total edge weight of each community (updated)
+ * @param x original graph
+ * @param u given vertex
+ * @param c community to move to
+ * @param vtot total edge weight of each vertex
+ */
+template <class G, class K, class V>
+void louvainChangeCommunityOmp(vector<K>& vcom, vector<V>& ctot, const G& x, K u, K c, const vector<V>& vtot) {
+  K d = vcom[u];
+  #pragma omp atomic
+  ctot[d] -= vtot[u];
+  #pragma omp atomic
+  ctot[c] += vtot[u];
+  vcom[u] = c;
+}
+
+
+
+
 // LOUVAIN-MOVE
 // ------------
 
@@ -49,7 +74,7 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<
       louvainClearScan(vcs[t], vcout[t]);
       louvainScanCommunities(vcs[t], vcout[t], x, u, vcom);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs[t], vcout[t], M, R);
-      if (c)      { louvainChangeCommunity(vcom, ctot, x, u, c, vtot); fp(u); }
+      if (c)      { louvainChangeCommunityOmp(vcom, ctot, x, u, c, vtot); fp(u); }
       el += e;  // l1-norm
     } ++l;
     if (el<=E) break;
