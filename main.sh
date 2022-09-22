@@ -10,7 +10,7 @@ git clone https://github.com/puzzlef/$src
 cd $src
 
 # Run
-g++ -std=c++17 -O3 main.cxx
+g++ -std=c++17 -O3 -fopenmp main.cxx
 stdbuf --output=L ./a.out ~/data/web-Stanford.mtx      2>&1 | tee -a "$out"
 stdbuf --output=L ./a.out ~/data/web-BerkStan.mtx      2>&1 | tee -a "$out"
 stdbuf --output=L ./a.out ~/data/web-Google.mtx        2>&1 | tee -a "$out"

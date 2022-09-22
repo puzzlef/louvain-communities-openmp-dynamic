@@ -14,7 +14,7 @@ display(FileLink(out))
 !echo ""
 
 # Run
-!g++ -std=c++17 -O3 main.cxx
+!g++ -std=c++17 -O3 -fopenmp main.cxx
 !stdbuf --output=L ./a.out $inp/web-Stanford.mtx      2>&1 | tee -a "$out"
 !stdbuf --output=L ./a.out $inp/web-BerkStan.mtx      2>&1 | tee -a "$out"
 !stdbuf --output=L ./a.out $inp/web-Google.mtx        2>&1 | tee -a "$out"

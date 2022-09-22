@@ -79,14 +79,16 @@ void runLouvain(const G& x, int repeat) {
     for (int batchCount=1; batchCount<=5; ++batchCount) {
       auto y = duplicate(x);
       auto insertions = addRandomEdges(y, rnd, x.span(), V(1), batchSize); vector<tuple<K, K>> deletions;
-      LouvainResult<K> bl = louvainSeqStatic(y, init, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), bl.time, bl.iterations, bl.passes, getModularity(y, bl, M));
-      LouvainResult<K> cl = louvainSeqStatic(y, &al.membership, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqNaiveDynamic\n",          double(batchSize), cl.time, cl.iterations, cl.passes, getModularity(y, cl, M));
-      LouvainResult<K> dl = louvainSeqDynamicDeltaScreening(y, deletions, insertions, &al.membership, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqDynamicDeltaScreening\n", double(batchSize), dl.time, dl.iterations, dl.passes, getModularity(y, dl, M));
-      LouvainResult<K> el = louvainSeqDynamicFrontier(y, deletions, insertions, &al.membership, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqDynamicFrontier\n",       double(batchSize), el.time, el.iterations, el.passes, getModularity(y, el, M));
+      LouvainResult<K> bk = louvainSeqStatic(y, init, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), bk.time, bk.iterations, bk.passes, getModularity(y, bk, M));
+      LouvainResult<K> bl = louvainOmpStatic(y, init, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(batchSize), bl.time, bl.iterations, bl.passes, getModularity(y, bl, M));
+      LouvainResult<K> cl = louvainOmpStatic(y, &al.membership, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(batchSize), cl.time, cl.iterations, cl.passes, getModularity(y, cl, M));
+      LouvainResult<K> dl = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &al.membership, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(batchSize), dl.time, dl.iterations, dl.passes, getModularity(y, dl, M));
+      LouvainResult<K> el = louvainOmpDynamicFrontier(y, deletions, insertions, &al.membership, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(batchSize), el.time, el.iterations, el.passes, getModularity(y, el, M));
     }
   }
   // Batch of deletions only (dynamic).
@@ -94,14 +96,16 @@ void runLouvain(const G& x, int repeat) {
     for (int batchCount=1; batchCount<=5; ++batchCount) {
       auto y = duplicate(x);
       auto deletions = removeRandomEdges(y, rnd, batchSize); vector<tuple<K, K, V>> insertions;
-      LouvainResult<K> bl = louvainSeqStatic(y, init, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(-batchSize), bl.time, bl.iterations, bl.passes, getModularity(y, bl, M));
-      LouvainResult<K> cl = louvainSeqStatic(y, &al.membership, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqNaiveDynamic\n",          double(-batchSize), cl.time, cl.iterations, cl.passes, getModularity(y, cl, M));
-      LouvainResult<K> dl = louvainSeqDynamicDeltaScreening(y, deletions, insertions, &al.membership, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqDynamicDeltaScreening\n", double(-batchSize), dl.time, dl.iterations, dl.passes, getModularity(y, dl, M));
-      LouvainResult<K> el = louvainSeqDynamicFrontier(y, deletions, insertions, &al.membership, o);
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqDynamicFrontier\n",       double(-batchSize), el.time, el.iterations, el.passes, getModularity(y, el, M));
+      LouvainResult<K> bk = louvainSeqStatic(y, init, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(-batchSize), bk.time, bk.iterations, bk.passes, getModularity(y, bk, M));
+      LouvainResult<K> bl = louvainOmpStatic(y, init, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(-batchSize), bl.time, bl.iterations, bl.passes, getModularity(y, bl, M));
+      LouvainResult<K> cl = louvainOmpStatic(y, &al.membership, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(-batchSize), cl.time, cl.iterations, cl.passes, getModularity(y, cl, M));
+      LouvainResult<K> dl = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &al.membership, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(-batchSize), dl.time, dl.iterations, dl.passes, getModularity(y, dl, M));
+      LouvainResult<K> el = louvainOmpDynamicFrontier(y, deletions, insertions, &al.membership, o);
+      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(-batchSize), el.time, el.iterations, el.passes, getModularity(y, el, M));
     }
   }
 }

@@ -45,7 +45,7 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<
     for (K u=K(); u<S; ++u) {
       int t = omp_get_thread_num();
       if (!x.hasVertex(u)) continue;
-      if (!fa(u)) return;
+      if (!fa(u)) continue;
       louvainClearScan(vcs[t], vcout[t]);
       louvainScanCommunities(vcs[t], vcout[t], x, u, vcom);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs[t], vcout[t], M, R);
