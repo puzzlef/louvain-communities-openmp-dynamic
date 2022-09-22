@@ -1,7 +1,7 @@
-# https://www.kaggle.com/wolfram77/puzzlef-louvain-static-vs-dynamic
+# https://www.kaggle.com/wolfram77/puzzlef-louvain-openmp-static-vs-dynamic
 import os
 from IPython.display import FileLink
-src="louvain-static-vs-dynamic"
+src="louvain-openmp-static-vs-dynamic"
 inp="/kaggle/input/graphs"
 out="{}.txt".format(src)
 !printf "" > "$out"

@@ -268,14 +268,14 @@ auto louvainCommunityVertices(const G& x, const vector<K>& vcom) {
 /**
  * Louvain algorithm's community aggregation phase.
  * @param a output graph
+ * @param vcs communities vertex u is linked to (temporary buffer, updated)
+ * @param vcout total edge weight from vertex u to community C (temporary buffer, updated)
  * @param x original graph
  * @param vcom community each vertex belongs to
  */
-template <class G, class K>
-void louvainAggregate(G& a, const G& x, const vector<K>& vcom) {
-  using V = typename G::edge_value_type;
+template <class G, class K, class V>
+void louvainAggregate(G& a, vector<K>& vcs, vector<V>& vcout, const G& x, const vector<K>& vcom) {
   K S = x.span();
-  vector<K> vcs; vector<V> vcout(S);
   auto comv = louvainCommunityVertices(x, vcom);
   for (K c=0; c<comv.size(); ++c) {
     if (comv[c].empty()) continue;
@@ -288,9 +288,9 @@ void louvainAggregate(G& a, const G& x, const vector<K>& vcom) {
   }
   a.correct();
 }
-template <class G, class K>
-inline auto louvainAggregate(const G& x, const vector<K>& vcom) {
-  G a; louvainAggregate(a, x, vcom);
+template <class G, class K, class V>
+inline auto louvainAggregate(vector<K>& vcs, vector<V>& vcout, const G& x, const vector<K>& vcom) {
+  G a; louvainAggregate(a, vcs, vcout, x, vcom);
   return a;
 }
 
