@@ -66,7 +66,7 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<
   int l = 0; V Q = V();
   for (; l<L;) {
     V el = V();
-    #pragma omp parallel for schedule(auto)
+    #pragma omp parallel for schedule(auto) reduction(+:el)
     for (K u=K(); u<S; ++u) {
       int t = omp_get_thread_num();
       if (!x.hasVertex(u)) continue;
