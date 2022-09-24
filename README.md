@@ -1,7 +1,5 @@
-Comparing naive dynamic approaches of the Louvain algorithm for community
-detection.
-
-`TODO`
+Comparing static vs dynamic approaches of OpenMP-based [Louvain algorithm]
+for [community detection].
 
 [Louvain] is an algorithm for **detecting communities in graphs**. *Community*
 *detection* helps us understand the *natural divisions in a network* in an
@@ -52,27 +50,34 @@ phase in the current pass to see if it is below `passTolerance`. `passTolerance`
 is normally set to `0` (we want to maximize our modularity gain), but the same
 thing does not apply for `tolerance`. Adjusting values of `tolerance` between
 each pass have been observed to impact the runtime of the algorithm, without
-significantly affecting the modularity of obtained communities.
+significantly affecting the modularity of obtained communities. In this
+experiment, we compare the performance of *three different types* of OpenMP-based
+**dynamic Louvain** with respect to the *static* version. We also compare with
+sequential static approach.
 
-In this experiment, we compare the performance of *two different types* of **naive**
-**dynamic Louvain** with respect to the *static* version. The **last** approach
-(`louvainSeqDynamicLast`) considers the community membership of each vertex
-*after* the Louvain algorithm has *converged* (community membership from the "last"
-pass) and then performs the Louvain algorithm upon the new (updated) graph. This
-is *similar* to naive dynamic approaches with other algorithms. On the other hand,
-the **first** approach (`louvainSeqDynamicFirst`) considers the community
-membership of each vertex right after the *first pass* of the Louvain algorithm
-(this is the first community membership hierarchy) and then performs the Louvain
-algorithm upon the updated graph. With this approach, we allow the affected
-vertices to choose their community membership from the first pass itself, which
-which to my intuition would lead to better communities.
+**Naive dynamic**:
+- We start with previous community membership of each vertex (instead of each vertex its own community).
+
+**Delta screening**:
+- All edge batches are undirected, and sorted by source vertex-id.
+- For edge additions across communities with source vertex `i` and highest modularity changing edge vertex `j*`,
+  `i`'s neighbors and `j*`'s community is marked as affected.
+- For edge deletions within the same community `i` and `j`,
+  `i`'s neighbors and `j`'s community is marked as affected.
+
+**Frontier-based**:
+- All source and destination vertices are marked as affected for insertions and deletions.
+- For edge additions across communities with source vertex `i` and destination vertex `j`,
+  `i` is marked as affected.
+- For edge deletions within the same community `i` and `j`,
+  `i` is marked as affected.
+- Vertices whose communities change in local-moving phase have their neighbors marked as affected.
 
 First, we compute the community membership of each vertex using the static
-Louvain algorithm (`louvainSeqLast`). We also run the static Louvain algorithm
-for only one pass (`louvainSeqFirst`). We then generate *batches* of *insertions*
-*(+)* and *deletions (-)* of edges of sizes 500, 1000, 5000, ... 100000. For each
-batch size, we generate *five* different batches for the purpose of *averaging*.
-Each batch of edges (insertion / deletion) is generated randomly such that the
+Louvain algorithm. We then generate *batches* of *insertions (+)* and
+*deletions (-)* of edges of sizes 500, 1000, 5000, ... 100000. For each batch
+size, we generate *five* different batches for the purpose of *averaging*. Each
+batch of edges (insertion / deletion) is generated randomly such that the
 selection of each vertex (as endpoint) is *equally probable*. We choose the
 Louvain *parameters* as `resolution = 1.0`, `tolerance = 1e-2` (for local-moving
 phase) with *tolerance* decreasing after every pass by a factor of
@@ -80,29 +85,34 @@ phase) with *tolerance* decreasing after every pass by a factor of
 In addition we limit the maximum number of iterations in a single local-moving
 phase with `maxIterations = 500`, and limit the maximum number of passes with
 `maxPasses = 500`. We run the Louvain algorithm until convergence (or until the
-maximum limits are exceeded), and measure the **time** **taken** for the
+maximum limits are exceeded), and measure the **time taken** for the
 *computation* (performed 5 times for averaging), the **modularity score**, the
-**total number of iterations** (in the *local-moving* *phase*), and the number
+**total number of iterations** (in the *local-moving phase*), and the number
 of **passes**. This is repeated for *seventeen* different graphs.
 
-From the results, we make make the following observations. The performance of
-dynamic approaches upon a batch of deletions appears to *increase* with *increasing*
-batch size*. This makes sense since, as the graph keeps getting smaller, the
-computation would complete *sooner*. Next, the `first` naive dynamic approach is
-found to be *significantly slower* (~0.3x speedup) than the `last` approach.
-However, the `first` approach is *still faster* than the static approach upto a
-batch size of `50000`. On the other hand, the `last` approach is *faster* than the
-static approach for all batch sizes. A similar behavior is observed with the
-total number of iterations. The `first` approach seems to have a *slightly higher*
-modularity with respect to the `last` approach. Since the modularity between the
-two dynamic approaches are almost the same, the **last** approach is clearly the
-**best choice**.
+From the results, we make make the following observations. The frontier-based
+dynamic approach converges the fastest, while obtaining communities with only
+slightly lower modularity than other approaches. We also observe that
+naive dynamic approach is faster than the delta-screening based dynamic approach.
+Therefore, **frontier-based dynamic Louvain** would be the **best choice**. However,
+one of the most interesting things we note is that sequential static approach
+is actually faster than OpenMP-based approach with 12 threads. This is indeed
+suprising, and is likely due to higher pressure on cache coherence system as well
+as the algorithm becoming closes to an unordered approach, which is inherently
+slower than an ordered approach. Trying to avoid community swaps does not seem
+to improve performance by any significant amount. However, it is possible that
+if unordered approach is used with OpenMP, then its performance may be higher
+than sequential approach.
 
 All outputs are saved in a [gist] and a small part of the output is listed here.
 Some [charts] are also included below, generated from [sheets]. The input data
 used for this experiment is available from the [SuiteSparse Matrix Collection].
 This experiment was done with guidance from [Prof. Kishore Kothapalli] and
 [Prof. Dip Sankar Banerjee].
+
+
+[Louvain algorithm]: https://en.wikipedia.org/wiki/Louvain_method
+[community detection]: https://en.wikipedia.org/wiki/Community_search
 
 <br>
 
@@ -115,33 +125,55 @@ $ ...
 # Loading graph /home/subhajit/data/web-Stanford.mtx ...
 # order: 281903 size: 2312497 [directed] {}
 # order: 281903 size: 3985272 [directed] {} (symmetricize)
+# OMP_NUM_THREADS=12
 # [-0.000497 modularity] noop
-# [0e+00 batch_size; 0 batch_count; 00792.589 ms; 0025 iters.; 009 passes; 0.923382580 modularity] louvainSeqLast
-# [0e+00 batch_size; 0 batch_count; 00573.409 ms; 0004 iters.; 001 passes; 0.766543329 modularity] louvainSeqFirst
-# [5e+02 batch_size; 1 batch_count; 00224.703 ms; 0004 iters.; 004 passes; 0.914939582 modularity] louvainSeqDynamicLast
-# [5e+02 batch_size; 1 batch_count; 00480.665 ms; 0025 iters.; 009 passes; 0.923243225 modularity] louvainSeqDynamicFirst
-# [5e+02 batch_size; 2 batch_count; 00227.230 ms; 0004 iters.; 004 passes; 0.914955676 modularity] louvainSeqDynamicLast
+# [0e+00 batch_size; 00442.630 ms; 0025 iters.; 009 passes; 0.923382580 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00393.622 ms; 0025 iters.; 009 passes; 0.923352957 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00537.437 ms; 0026 iters.; 009 passes; 0.923601031 modularity] louvainOmpStatic
+# [5e+02 batch_size; 00156.743 ms; 0003 iters.; 003 passes; 0.914561987 modularity] louvainOmpNaiveDynamic
+# [5e+02 batch_size; 00149.521 ms; 0003 iters.; 003 passes; 0.914559960 modularity] louvainOmpDynamicDeltaScreening
+# [5e+02 batch_size; 00098.799 ms; 0003 iters.; 003 passes; 0.913417161 modularity] louvainOmpDynamicFrontier
+# [5e+02 batch_size; 00439.672 ms; 0031 iters.; 009 passes; 0.923325181 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00499.481 ms; 0026 iters.; 009 passes; 0.923249245 modularity] louvainOmpStatic
+# [5e+02 batch_size; 00169.471 ms; 0004 iters.; 004 passes; 0.914558291 modularity] louvainOmpNaiveDynamic
+# [5e+02 batch_size; 00159.997 ms; 0004 iters.; 004 passes; 0.914558351 modularity] louvainOmpDynamicDeltaScreening
+# [5e+02 batch_size; 00114.948 ms; 0004 iters.; 004 passes; 0.913414419 modularity] louvainOmpDynamicFrontier
 # ...
-# [-1e+05 batch_size; 4 batch_count; 00397.172 ms; 0011 iters.; 006 passes; 0.876155496 modularity] louvainSeqDynamicFirst
-# [-1e+05 batch_size; 5 batch_count; 00206.570 ms; 0004 iters.; 004 passes; 0.869377553 modularity] louvainSeqDynamicLast
-# [-1e+05 batch_size; 5 batch_count; 00406.253 ms; 0012 iters.; 006 passes; 0.876216054 modularity] louvainSeqDynamicFirst
+# [1e+05 batch_size; 00558.448 ms; 0019 iters.; 006 passes; 0.925163567 modularity] louvainSeqStatic
+# [1e+05 batch_size; 00613.000 ms; 0023 iters.; 006 passes; 0.925608277 modularity] louvainOmpStatic
+# [1e+05 batch_size; 00178.824 ms; 0002 iters.; 002 passes; 0.900283873 modularity] louvainOmpNaiveDynamic
+# [1e+05 batch_size; 00177.456 ms; 0002 iters.; 002 passes; 0.905048788 modularity] louvainOmpDynamicDeltaScreening
+# [1e+05 batch_size; 00153.540 ms; 0008 iters.; 004 passes; 0.910760760 modularity] louvainOmpDynamicFrontier
+# [-5e+02 batch_size; 00476.026 ms; 0026 iters.; 009 passes; 0.923168123 modularity] louvainSeqStatic
+# [-5e+02 batch_size; 00562.258 ms; 0025 iters.; 009 passes; 0.923429430 modularity] louvainOmpStatic
+# [-5e+02 batch_size; 00160.448 ms; 0004 iters.; 004 passes; 0.914338946 modularity] louvainOmpNaiveDynamic
+# [-5e+02 batch_size; 00148.848 ms; 0004 iters.; 004 passes; 0.914338946 modularity] louvainOmpDynamicDeltaScreening
+# [-5e+02 batch_size; 00082.513 ms; 0002 iters.; 002 passes; 0.913196385 modularity] louvainOmpDynamicFrontier
+# ...
+# [-1e+05 batch_size; 00443.513 ms; 0015 iters.; 006 passes; 0.877240241 modularity] louvainSeqStatic
+# [-1e+05 batch_size; 00586.625 ms; 0013 iters.; 006 passes; 0.877311707 modularity] louvainOmpStatic
+# [-1e+05 batch_size; 00157.759 ms; 0003 iters.; 003 passes; 0.869375467 modularity] louvainOmpNaiveDynamic
+# [-1e+05 batch_size; 00159.092 ms; 0003 iters.; 003 passes; 0.869375050 modularity] louvainOmpDynamicDeltaScreening
+# [-1e+05 batch_size; 00132.028 ms; 0003 iters.; 003 passes; 0.869376063 modularity] louvainOmpDynamicFrontier
 #
 # Loading graph /home/subhajit/data/web-BerkStan.mtx ...
 # order: 685230 size: 7600595 [directed] {}
 # order: 685230 size: 13298940 [directed] {} (symmetricize)
+# OMP_NUM_THREADS=12
 # [-0.000316 modularity] noop
-# [0e+00 batch_size; 0 batch_count; 01248.049 ms; 0028 iters.; 009 passes; 0.935839474 modularity] louvainSeqLast
-# [0e+00 batch_size; 0 batch_count; 00926.964 ms; 0005 iters.; 001 passes; 0.798873782 modularity] louvainSeqFirst
-# [5e+02 batch_size; 1 batch_count; 00527.935 ms; 0003 iters.; 003 passes; 0.932618558 modularity] louvainSeqDynamicLast
-# [5e+02 batch_size; 1 batch_count; 00884.497 ms; 0025 iters.; 009 passes; 0.935987055 modularity] louvainSeqDynamicFirst
-# [5e+02 batch_size; 2 batch_count; 00529.566 ms; 0003 iters.; 003 passes; 0.932615817 modularity] louvainSeqDynamicLast
+# [0e+00 batch_size; 00743.287 ms; 0028 iters.; 009 passes; 0.935839474 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00748.399 ms; 0027 iters.; 009 passes; 0.937621713 modularity] louvainSeqStatic
+# [5e+02 batch_size; 01430.160 ms; 0026 iters.; 009 passes; 0.935832143 modularity] louvainOmpStatic
+# [5e+02 batch_size; 00369.229 ms; 0003 iters.; 003 passes; 0.932617188 modularity] louvainOmpNaiveDynamic
+# [5e+02 batch_size; 00306.970 ms; 0003 iters.; 003 passes; 0.932617188 modularity] louvainOmpDynamicDeltaScreening
+# [5e+02 batch_size; 00182.239 ms; 0003 iters.; 003 passes; 0.932644069 modularity] louvainOmpDynamicFrontier
 # ...
 ```
 
-[![](https://i.imgur.com/HJAS3Di.png)][sheetp]
-[![](https://i.imgur.com/4iQ7CzY.png)][sheetp]
-[![](https://i.imgur.com/E9nDrAI.png)][sheetp]
-[![](https://i.imgur.com/BZGF6Yt.png)][sheetp]
+[![](https://i.imgur.com/rAnpLPn.png)][sheetp]
+[![](https://i.imgur.com/GGnisH1.png)][sheetp]
+[![](https://i.imgur.com/QG5FiGC.png)][sheetp]
+[![](https://i.imgur.com/VK9VrqQ.png)][sheetp]
 
 <br>
 <br>
@@ -161,14 +193,13 @@ $ ...
 
 [![](https://i.imgur.com/9HITKSz.jpg)](https://www.youtube.com/watch?v=wCUV6N4Qtew&t=447s)<br>
 [![ORG](https://img.shields.io/badge/org-puzzlef-green?logo=Org)](https://puzzlef.github.io)
-[![DOI](https://zenodo.org/badge/519984922.svg)](https://zenodo.org/badge/latestdoi/519984922)
 
 
 [Prof. Dip Sankar Banerjee]: https://sites.google.com/site/dipsankarban/
 [Prof. Kishore Kothapalli]: https://faculty.iiit.ac.in/~kkishore/
 [SuiteSparse Matrix Collection]: https://sparse.tamu.edu
 [Louvain]: https://en.wikipedia.org/wiki/Louvain_method
-[gist]: https://gist.github.com/wolfram77/9c1bff3cc327acd80c9e2479ef7c4e57
-[charts]: https://imgur.com/a/3vhRU3c
-[sheets]: https://docs.google.com/spreadsheets/d/189GRfvpTxSMWLrqafHMvHyV7ddaXFZQ0u056MfnO2uU/edit?usp=sharing
-[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vRrGpRtzagVZCmtPuIUaD03I8SGY2PEZGusNV90ojCgntRbiEg0r8wCp-YiT8A7e8ZqzqQqAJveqGOD/pubhtml
+[gist]: https://gist.github.com/wolfram77/3f9d0452901d3719d0e0baf345615c91
+[charts]: https://imgur.com/a/igL8c2j
+[sheets]: https://docs.google.com/spreadsheets/d/13GMWmhcw5EbCVgVVtP08yQQrpQmE_EIyhNGb0MzEPX8/edit?usp=sharing
+[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vR_oG_LC7Nuy3B8dlM1SUM4UeCpB946foX7cvBxeYs8YZHS0h76thPjQU5kI_shiSvD7FjbppNT4-G1/pubhtml
