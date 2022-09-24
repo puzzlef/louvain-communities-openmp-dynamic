@@ -71,11 +71,11 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<
       int t = omp_get_thread_num();
       if (!x.hasVertex(u)) continue;
       if (!fa(u)) continue;
+      K d = vcom[u];
       louvainClearScan(vcs[t], vcout[t]);
       louvainScanCommunities(vcs[t], vcout[t], x, u, vcom);
-      auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs[t], vcout[t], M, R);
-      if (c)      { louvainChangeCommunityOmp(vcom, ctot, x, u, c, vtot); fp(u); }
-      el += e;  // l1-norm
+      auto [c, e] =   louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs[t], vcout[t], M, R);
+      if (c && c<d) { louvainChangeCommunityOmp(vcom, ctot, x, u, c, vtot); fp(u); el += e; }  // l1-norm
     } ++l;
     if (el<=E) break;
   }
