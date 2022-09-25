@@ -91,18 +91,19 @@ maximum limits are exceeded), and measure the **time taken** for the
 of **passes**. This is repeated for *seventeen* different graphs.
 
 From the results, we make make the following observations. The frontier-based
-dynamic approach converges the fastest, while obtaining communities with only
+dynamic approach converges the fastest, which obtaining communities with only
 slightly lower modularity than other approaches. We also observe that
-naive dynamic approach is faster than the delta-screening based dynamic approach.
-Therefore, **frontier-based dynamic Louvain** would be the **best choice**. However,
-one of the most interesting things we note is that sequential static approach
-is actually faster than OpenMP-based approach with 12 threads. This is indeed
-suprising, and is likely due to higher pressure on cache coherence system as well
-as the algorithm becoming closes to an unordered approach, which is inherently
-slower than an ordered approach. Trying to avoid community swaps does not seem
-to improve performance by any significant amount. However, it is possible that
-if unordered approach is used with OpenMP, then its performance may be higher
-than sequential approach.
+delta-screening based dynamic Louvain algorithm has the same performance as that
+of the naive dynamic approach. Therefore, **frontier-based dynamic Louvain**
+would be the **best choice**. However, one of the most interesting things we
+note is that sequential static approach is only slightly slower than
+OpenMP-based approach with 12 threads. This is indeed suprising, and is likely
+due to higher pressure on cache coherence system as well as the algorithm
+becoming closes to an unordered approach, which is inherently slower than an
+ordered approach. Trying to avoid community swaps with OpenMP-based approach
+does not seem to improve performance by any significant amount. However, it is
+possible that if unordered approach is used with OpenMP, then its performance
+may be a bit better.
 
 All outputs are saved in a [gist] and a small part of the output is listed here.
 Some [charts] are also included below, generated from [sheets]. The input data
@@ -127,53 +128,48 @@ $ ...
 # order: 281903 size: 3985272 [directed] {} (symmetricize)
 # OMP_NUM_THREADS=12
 # [-0.000497 modularity] noop
-# [0e+00 batch_size; 00442.630 ms; 0025 iters.; 009 passes; 0.923382580 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00393.622 ms; 0025 iters.; 009 passes; 0.923352957 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00537.437 ms; 0026 iters.; 009 passes; 0.923601031 modularity] louvainOmpStatic
-# [5e+02 batch_size; 00156.743 ms; 0003 iters.; 003 passes; 0.914561987 modularity] louvainOmpNaiveDynamic
-# [5e+02 batch_size; 00149.521 ms; 0003 iters.; 003 passes; 0.914559960 modularity] louvainOmpDynamicDeltaScreening
-# [5e+02 batch_size; 00098.799 ms; 0003 iters.; 003 passes; 0.913417161 modularity] louvainOmpDynamicFrontier
-# [5e+02 batch_size; 00439.672 ms; 0031 iters.; 009 passes; 0.923325181 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00499.481 ms; 0026 iters.; 009 passes; 0.923249245 modularity] louvainOmpStatic
-# [5e+02 batch_size; 00169.471 ms; 0004 iters.; 004 passes; 0.914558291 modularity] louvainOmpNaiveDynamic
-# [5e+02 batch_size; 00159.997 ms; 0004 iters.; 004 passes; 0.914558351 modularity] louvainOmpDynamicDeltaScreening
-# [5e+02 batch_size; 00114.948 ms; 0004 iters.; 004 passes; 0.913414419 modularity] louvainOmpDynamicFrontier
+# [0e+00 batch_size; 00440.006 ms; 0025 iters.; 009 passes; 0.923382580 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00394.563 ms; 0027 iters.; 009 passes; 0.923351705 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00278.041 ms; 0030 iters.; 009 passes; 0.927210510 modularity] louvainOmpStatic
+# [5e+02 batch_size; 00101.633 ms; 0003 iters.; 003 passes; 0.914556682 modularity] louvainOmpNaiveDynamic
+# [5e+02 batch_size; 00107.587 ms; 0004 iters.; 004 passes; 0.914944172 modularity] louvainOmpDynamicDeltaScreening
+# [5e+02 batch_size; 00088.939 ms; 0003 iters.; 003 passes; 0.913411736 modularity] louvainOmpDynamicFrontier
 # ...
-# [1e+05 batch_size; 00558.448 ms; 0019 iters.; 006 passes; 0.925163567 modularity] louvainSeqStatic
-# [1e+05 batch_size; 00613.000 ms; 0023 iters.; 006 passes; 0.925608277 modularity] louvainOmpStatic
-# [1e+05 batch_size; 00178.824 ms; 0002 iters.; 002 passes; 0.900283873 modularity] louvainOmpNaiveDynamic
-# [1e+05 batch_size; 00177.456 ms; 0002 iters.; 002 passes; 0.905048788 modularity] louvainOmpDynamicDeltaScreening
-# [1e+05 batch_size; 00153.540 ms; 0008 iters.; 004 passes; 0.910760760 modularity] louvainOmpDynamicFrontier
-# [-5e+02 batch_size; 00476.026 ms; 0026 iters.; 009 passes; 0.923168123 modularity] louvainSeqStatic
-# [-5e+02 batch_size; 00562.258 ms; 0025 iters.; 009 passes; 0.923429430 modularity] louvainOmpStatic
-# [-5e+02 batch_size; 00160.448 ms; 0004 iters.; 004 passes; 0.914338946 modularity] louvainOmpNaiveDynamic
-# [-5e+02 batch_size; 00148.848 ms; 0004 iters.; 004 passes; 0.914338946 modularity] louvainOmpDynamicDeltaScreening
-# [-5e+02 batch_size; 00082.513 ms; 0002 iters.; 002 passes; 0.913196385 modularity] louvainOmpDynamicFrontier
+# [1e+05 batch_size; 00552.708 ms; 0019 iters.; 006 passes; 0.925986648 modularity] louvainSeqStatic
+# [1e+05 batch_size; 00321.840 ms; 0026 iters.; 005 passes; 0.925740898 modularity] louvainOmpStatic
+# [1e+05 batch_size; 00130.201 ms; 0010 iters.; 004 passes; 0.912258267 modularity] louvainOmpNaiveDynamic
+# [1e+05 batch_size; 00115.326 ms; 0002 iters.; 002 passes; 0.912238598 modularity] louvainOmpDynamicDeltaScreening
+# [1e+05 batch_size; 00117.582 ms; 0010 iters.; 004 passes; 0.911141872 modularity] louvainOmpDynamicFrontier
+# [-5e+02 batch_size; 00389.191 ms; 0024 iters.; 008 passes; 0.923092246 modularity] louvainSeqStatic
+# [-5e+02 batch_size; 00286.037 ms; 0026 iters.; 008 passes; 0.926223278 modularity] louvainOmpStatic
+# [-5e+02 batch_size; 00106.936 ms; 0004 iters.; 004 passes; 0.914734781 modularity] louvainOmpNaiveDynamic
+# [-5e+02 batch_size; 00110.743 ms; 0004 iters.; 004 passes; 0.914734781 modularity] louvainOmpDynamicDeltaScreening
+# [-5e+02 batch_size; 00073.786 ms; 0002 iters.; 002 passes; 0.913197339 modularity] louvainOmpDynamicFrontier
 # ...
-# [-1e+05 batch_size; 00443.513 ms; 0015 iters.; 006 passes; 0.877240241 modularity] louvainSeqStatic
-# [-1e+05 batch_size; 00586.625 ms; 0013 iters.; 006 passes; 0.877311707 modularity] louvainOmpStatic
-# [-1e+05 batch_size; 00157.759 ms; 0003 iters.; 003 passes; 0.869375467 modularity] louvainOmpNaiveDynamic
-# [-1e+05 batch_size; 00159.092 ms; 0003 iters.; 003 passes; 0.869375050 modularity] louvainOmpDynamicDeltaScreening
-# [-1e+05 batch_size; 00132.028 ms; 0003 iters.; 003 passes; 0.869376063 modularity] louvainOmpDynamicFrontier
+# [-1e+05 batch_size; 00471.004 ms; 0018 iters.; 006 passes; 0.881129861 modularity] louvainSeqStatic
+# [-1e+05 batch_size; 00387.020 ms; 0017 iters.; 006 passes; 0.877473772 modularity] louvainOmpStatic
+# [-1e+05 batch_size; 00115.070 ms; 0004 iters.; 004 passes; 0.869384587 modularity] louvainOmpNaiveDynamic
+# [-1e+05 batch_size; 00106.264 ms; 0004 iters.; 004 passes; 0.869384587 modularity] louvainOmpDynamicDeltaScreening
+# [-1e+05 batch_size; 00099.210 ms; 0004 iters.; 004 passes; 0.868384838 modularity] louvainOmpDynamicFrontier
 #
 # Loading graph /home/subhajit/data/web-BerkStan.mtx ...
 # order: 685230 size: 7600595 [directed] {}
 # order: 685230 size: 13298940 [directed] {} (symmetricize)
 # OMP_NUM_THREADS=12
 # [-0.000316 modularity] noop
-# [0e+00 batch_size; 00743.287 ms; 0028 iters.; 009 passes; 0.935839474 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00748.399 ms; 0027 iters.; 009 passes; 0.937621713 modularity] louvainSeqStatic
-# [5e+02 batch_size; 01430.160 ms; 0026 iters.; 009 passes; 0.935832143 modularity] louvainOmpStatic
-# [5e+02 batch_size; 00369.229 ms; 0003 iters.; 003 passes; 0.932617188 modularity] louvainOmpNaiveDynamic
-# [5e+02 batch_size; 00306.970 ms; 0003 iters.; 003 passes; 0.932617188 modularity] louvainOmpDynamicDeltaScreening
-# [5e+02 batch_size; 00182.239 ms; 0003 iters.; 003 passes; 0.932644069 modularity] louvainOmpDynamicFrontier
+# [0e+00 batch_size; 00735.782 ms; 0028 iters.; 009 passes; 0.935839474 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00741.732 ms; 0027 iters.; 009 passes; 0.937690854 modularity] louvainSeqStatic
+# [5e+02 batch_size; 00655.410 ms; 0028 iters.; 009 passes; 0.935854971 modularity] louvainOmpStatic
+# [5e+02 batch_size; 00216.361 ms; 0003 iters.; 003 passes; 0.932617486 modularity] louvainOmpNaiveDynamic
+# [5e+02 batch_size; 00246.924 ms; 0003 iters.; 003 passes; 0.932617486 modularity] louvainOmpDynamicDeltaScreening
+# [5e+02 batch_size; 00186.971 ms; 0004 iters.; 004 passes; 0.932644546 modularity] louvainOmpDynamicFrontier
 # ...
 ```
 
-[![](https://i.imgur.com/rAnpLPn.png)][sheetp]
-[![](https://i.imgur.com/GGnisH1.png)][sheetp]
-[![](https://i.imgur.com/QG5FiGC.png)][sheetp]
-[![](https://i.imgur.com/VK9VrqQ.png)][sheetp]
+[![](https://i.imgur.com/p8ZCnh3.png)][sheetp]
+[![](https://i.imgur.com/Egy7d0k.png)][sheetp]
+[![](https://i.imgur.com/sgqDzGG.png)][sheetp]
+[![](https://i.imgur.com/KXMkFpV.png)][sheetp]
 
 <br>
 <br>
