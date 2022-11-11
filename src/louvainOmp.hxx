@@ -61,7 +61,7 @@ void louvainChangeCommunityOmp(vector<K>& vcom, vector<V>& ctot, const G& x, K u
  * @returns iterations performed
  */
 template <class G, class K, class V, class FA, class FP>
-int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<V>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa, FP fp) {
+int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa, FP fp) {
   K S = x.span();
   int l = 0; V Q = V();
   for (; l<L;) {
@@ -71,9 +71,9 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<
       int t = omp_get_thread_num();
       if (!x.hasVertex(u)) continue;
       if (!fa(u)) continue;
-      louvainClearScan(vcs[t], vcout[t]);
-      louvainScanCommunities(vcs[t], vcout[t], x, u, vcom);
-      auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs[t], vcout[t], M, R);
+      louvainClearScan(*vcs[t], *vcout[t]);
+      louvainScanCommunities(*vcs[t], *vcout[t], x, u, vcom);
+      auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, *vcs[t], *vcout[t], M, R);
       if (c)      { louvainChangeCommunityOmp(vcom, ctot, x, u, c, vtot); fp(u); }
       el += e;  // l1-norm
     } ++l;
@@ -82,12 +82,12 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<
   return l;
 }
 template <class G, class K, class V, class FA>
-inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<V>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa) {
+inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa) {
   auto fp = [](auto u) {};
   return louvainMoveOmp(vcom, ctot, vcs, vcout, x, vtot, M, R, E, L, fa, fp);
 }
 template <class G, class K, class V>
-inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, vector2d<V>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L) {
+inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L) {
   auto fa = [](auto u) { return true; };
   return louvainMoveOmp(vcom, ctot, vcs, vcout, x, vtot, M, R, E, L, fa);
 }
@@ -107,7 +107,7 @@ inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector2d<K>& vcs, ve
  * @param vcom community each vertex belongs to
  */
 template <class G, class K, class V>
-void louvainAggregateOmp(G& a, vector2d<K>& vcs, vector2d<V>& vcout, const G& x, const vector<K>& vcom) {
+void louvainAggregateOmp(G& a, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<K>& vcom) {
   K S = x.span();
   auto comv = louvainCommunityVertices(x, vcom);
   for (K c=0; c<comv.size(); ++c) {
@@ -118,16 +118,16 @@ void louvainAggregateOmp(G& a, vector2d<K>& vcs, vector2d<V>& vcout, const G& x,
   for (K c=0; c<comv.size(); ++c) {
     int t = omp_get_thread_num();
     if (comv[c].empty()) continue;
-    louvainClearScan(vcs[t], vcout[t]);
+    louvainClearScan(*vcs[t], *vcout[t]);
     for (K u : comv[c])
-      louvainScanCommunities<true>(vcs[t], vcout[t], x, u, vcom);
-    for (auto d : vcs[t])
-      a.addEdge(c, d, vcout[t][d]);
+      louvainScanCommunities<true>(*vcs[t], *vcout[t], x, u, vcom);
+    for (auto d : *vcs[t])
+      a.addEdge(c, d, (*vcout[t])[d]);
   }
   a.correct();
 }
 template <class G, class K, class V>
-inline auto louvainAggregateOmp(vector2d<K>& vcs, vector2d<V>& vcout, const G& x, const vector<K>& vcom) {
+inline auto louvainAggregateOmp(vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<K>& vcom) {
   G a; louvainAggregateOmp(a, vcs, vcout, x, vcom);
   return a;
 }
@@ -149,8 +149,12 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o, FA f
   int T = omp_get_max_threads();
   vector<K> vcom(S), a(S);
   vector<V> vtot(S), ctot(S);
-  vector2d<K> vcs(T);
-  vector2d<V> vcout(T, vector<V>(S));
+  vector<vector<K>*> vcs(T);
+  vector<vector<V>*> vcout(T);
+  for (int t=0; t<T; ++t) {
+    vcs[t]   = new vector<K>();
+    vcout[t] = new vector<V>(S);
+  }
   float t = measureDurationMarked([&](auto mark) {
     V E  = o.tolerance;
     V Q0 = modularity(x, M, R);
@@ -188,6 +192,10 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o, FA f
       }
     });
   }, o.repeat);
+  for (int t=0; t<T; ++t) {
+    delete vcs[t];
+    delete vcout[t];
+  }
   return LouvainResult<K>(a, l, p, t);
 }
 template <class G, class K, class V, class FA>
