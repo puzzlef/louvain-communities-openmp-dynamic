@@ -612,7 +612,7 @@ inline size_t fastSize(const SizedIterable<I>& x) noexcept {
 }
 template <class J>
 inline size_t fastSize(const J& x) noexcept {
-  return -1;
+  return size_t(-1);
 }
 
 

@@ -1,13 +1,13 @@
 #pragma once
+#include <type_traits>
 #include <utility>
+#include <iterator>
 #include <array>
 #include <string>
 #include <vector>
 #include <ostream>
 #include <fstream>
 #include <iostream>
-#include <type_traits>
-#include <iterator>
 
 using std::pair;
 using std::array;
@@ -26,12 +26,12 @@ using std::cout;
 // READ-FILE
 // ---------
 
-string readFile(const char *pth) {
+string readFileText(const char *pth) {
   string a; ifstream f(pth);
   f.seekg(0, ios::end);
   a.resize(f.tellg());
   f.seekg(0);
-  f.read((char*) a.data(), a.size());
+  f.read((char*) a.c_str(), a.size());
   return a;
 }
 
@@ -58,33 +58,33 @@ void write_values(ostream& a, I ib, I ie) {
   }
 }
 template <class J>
-void writeValues(ostream& a, const J& x) {
+inline void writeValues(ostream& a, const J& x) {
   write_values(a, x.begin(), x.end());
 }
 
 template <class K, class V>
-void write(ostream& a, const pair<K, V>& x) {
+inline void write(ostream& a, const pair<K, V>& x) {
   a << x.first << ": " << x.second;
 }
 template <class T, size_t N>
-void write(ostream& a, const array<T, N>& x) {
+inline void write(ostream& a, const array<T, N>& x) {
   writeValues(a, x);
 }
 template <class T>
-void write(ostream& a, const vector<T>& x) {
+inline void write(ostream& a, const vector<T>& x) {
   writeValues(a, x);
 }
 
 template <class K, class V>
-ostream& operator<<(ostream& a, const pair<K, V>& x) {
+inline ostream& operator<<(ostream& a, const pair<K, V>& x) {
   write(a, x); return a;
 }
 template <class T, size_t N>
-ostream& operator<<(ostream& a, const array<T, N>& x) {
+inline ostream& operator<<(ostream& a, const array<T, N>& x) {
   write(a, x); return a;
 }
 template <class T>
-ostream& operator<<(ostream& a, const vector<T>& x) {
+inline ostream& operator<<(ostream& a, const vector<T>& x) {
   write(a, x); return a;
 }
 
@@ -95,8 +95,7 @@ ostream& operator<<(ostream& a, const vector<T>& x) {
 // ------
 
 template <class T>
-void print(const T& x) { cout << x; }
-
+inline void print(const T& x)   { cout << x; }
 template <class T>
-void println(const T& x) { cout << x << "\n"; }
-void println() { cout << "\n"; }
+inline void println(const T& x) { cout << x << "\n"; }
+inline void println()           { cout << "\n"; }

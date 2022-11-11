@@ -35,8 +35,8 @@ using std::cout;
 
 #ifndef GRAPH_SIZE
 #define GRAPH_SIZE(K, V, E, N, M, vexists)  \
-  inline K span()  const noexcept { return vexists.size(); } \
-  inline K order() const noexcept { return N; } \
+  inline K span()  const noexcept { return K(vexists.size()); } \
+  inline K order() const noexcept { return K(N); } \
   inline size_t size() const noexcept { return M; }
 #define GRAPH_SIZE_FROM(K, V, E, x) \
   inline K span()  const noexcept { return x.span(); } \
@@ -279,7 +279,7 @@ using std::cout;
 #ifndef GRAPH_DEGREES
 #define GRAPH_XDEGREE(K, V, E, name, eto) \
   inline K name(const K& u) const noexcept { \
-    return u < span()? eto[u].size() : 0; \
+    return u < span()? K(eto[u].size()) : 0; \
   }
 #define GRAPH_INDEGREE_SEARCH(K, V, E, eto) \
   inline K inDegree(const K& v) const noexcept { \

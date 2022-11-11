@@ -10,6 +10,7 @@
 using std::string;
 using std::istream;
 using std::stringstream;
+using std::ifstream;
 using std::ofstream;
 using std::getline;
 using std::max;
@@ -65,11 +66,17 @@ void readMtxW(G& a, istream& s, bool unq=false) {
   readMtxDo(s, fv, fe);
   a.correct(unq);
 }
-template <class G>
+template <bool SMALL=false, class G>
 void readMtxW(G& a, const char *pth, bool unq=false) {
-  string buf = readFile(pth);
-  stringstream s(buf);
-  return readMtxW(a, s, unq);
+  if (SMALL) {
+    string buf = readFileText(pth);
+    stringstream s(buf);
+    readMtxW(a, s, unq);
+  }
+  else {
+    ifstream f(pth);
+    readMtxW(a, f, unq);
+  }
 }
 
 
@@ -103,11 +110,18 @@ void writeMtx(ostream& a, const G& x) {
     });
   });
 }
-template <class G>
+template <bool SMALL=false, class G>
 inline void writeMtx(string pth, const G& x) {
-  string s0; stringstream s(s0);
-  writeMtx(s, x);
-  ofstream f(pth);
-  f << s.rdbuf();
-  f.close();
+  if (SMALL) {
+    string s0; stringstream s(s0);
+    writeMtx(s, x);
+    ofstream f(pth);
+    f << s.rdbuf();
+    f.close();
+  }
+  else {
+    ofstream f(pth);
+    writeMtx(f, x);
+    f.close();
+  }
 }

@@ -33,6 +33,31 @@ inline auto vertexValues(const G& x) {
 
 
 
+// VERTEX-DEGREES
+// --------------
+
+template <class G, class J, class FM>
+inline auto vertexDegrees(const G& x, const J& ks, FM fm) {
+  using K = typename G::key_type;
+  using T = remove_reference_t<decltype(fm(K(), K()))>;
+  vector<T> a;
+  for (auto u : ks)
+    a.push_back(fm(u, x.degree(u)));
+  return a;
+}
+template <class G, class J>
+inline auto vertexDegrees(const G& x, const J& ks) {
+  auto fm = [](auto u, auto d) { return d; };
+  return vertexDegrees(x, ks, fm);
+}
+template <class G>
+inline auto vertexDegrees(const G& x) {
+  return vertexDegrees(x, x.vertexKeys());
+}
+
+
+
+
 // VERTEX-DATA
 // -----------
 
@@ -109,7 +134,7 @@ inline void decompressKeyContainerW(vector<K>& a, const G& x, const vector<K>& v
 }
 
 template <class G, class K>
-inline auto decompressContainer(const G& x, const vector<K>& vs, const vector<K>& ks) {
+inline auto decompressKeyContainer(const G& x, const vector<K>& vs, const vector<K>& ks) {
   auto a = createContainer(x, K());
   decompressKeyContainerW(a, x, vs, ks);
   return a;

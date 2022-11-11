@@ -23,9 +23,11 @@ using std::all_of;
 using std::find;
 using std::find_if;
 using std::lower_bound;
+using std::adjacent_find;
 using std::count;
 using std::count_if;
 using std::back_inserter;
+using std::equal;
 using std::copy;
 using std::transform;
 using std::remove;
@@ -180,6 +182,23 @@ template <class J, class T, class FL, class FE>
 inline size_t lowerFindAt(const J& x, const T& v, FL fl, FE fe) {
   auto   it = lower_find(x.begin(), x.end(), v, fl, fe) - x.begin();
   return it != x.end()? it - x.begin() : size_t(-1);
+}
+
+
+
+
+// ADJACENT-FIND
+// -------------
+
+template <class J>
+inline size_t adjacentFind(const J& x) {
+  auto   it = adjacent_find(x.begin(), x.end());
+  return it - x.begin();
+}
+template <class J, class FE>
+inline size_t adjacentFind(const J& x, FE fe) {
+  auto   it = adjacent_find(x.begin(), x.end(), fe);
+  return it - x.begin();
 }
 
 
@@ -713,6 +732,31 @@ inline void sortValues(J& x) {
 template <class J, class FL>
 inline void sortValues(J& x, FL fl) {
   sort_values(x.begin(), x.end(), fl);
+}
+
+
+
+
+// MOST-FREQUENT
+// -------------
+// Get the value that appears most often (must be sorted).
+
+template <class I>
+auto most_frequent(I ib, I ie) {
+  using T = typename iterator_traits<I>::value_type;
+  T v = T(), a = T();
+  size_t m = 0, n = 0;
+  for (; ib!=ie; ++ib) {
+    if (*ib==v) { ++m; continue; }
+    if (m>n)    { a = v; n = m; }
+    v = *ib; m = 1;
+  }
+  if (m>n) a = v;
+  return a;
+}
+template <class J>
+auto mostFrequent(const J& x) {
+  return most_frequent(x.begin(), x.end());
 }
 
 

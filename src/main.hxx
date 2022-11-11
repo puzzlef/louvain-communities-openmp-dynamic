@@ -1,4 +1,5 @@
 #pragma once
+#define BUILD 0  // 5 == BUILD_TRACE
 #include "_main.hxx"
 #include "Graph.hxx"
 #include "mtx.hxx"

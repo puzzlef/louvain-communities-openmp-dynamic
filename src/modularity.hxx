@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <vector>
+#include "_main.hxx"
 
 using std::pow;
 using std::vector;
@@ -22,7 +23,8 @@ using std::vector;
  */
 template <class T>
 inline T modularityCommunity(T cin, T ctot, T M, T R=T(1)) {
-  return cin/(2*M) - R*pow(ctot/(2*M), 2);
+  ASSERT(cin>=T() && ctot>=T() && M>T() && R>T());
+  return cin/(2*M) - R*T(pow(ctot/(2*M), 2));
 }
 
 
@@ -36,6 +38,7 @@ inline T modularityCommunity(T cin, T ctot, T M, T R=T(1)) {
  */
 template <class T>
 T modularityCommunities(const vector<T>& cin, const vector<T>& ctot, T M, T R=T(1)) {
+  ASSERT(M>T() && R>T());
   T a = T();
   for (size_t i=0, I=cin.size(); i<I; i++)
     a += modularityCommunity(cin[i], ctot[i], M, R);
@@ -52,7 +55,8 @@ T modularityCommunities(const vector<T>& cin, const vector<T>& ctot, T M, T R=T(
  * @returns modularity [-0.5, 1]
  */
 template <class G, class FC, class T>
-auto modularity(const G& x, FC fc, T M, T R=T(1)) {
+auto modularityBy(const G& x, FC fc, T M, T R=T(1)) {
+  ASSERT(M>T() && R>T());
   size_t S = x.span();
   vector<T> cin(S), ctot(S);
   x.forEachVertexKey([&](auto u) {
@@ -75,8 +79,9 @@ auto modularity(const G& x, FC fc, T M, T R=T(1)) {
  */
 template <class G, class T>
 inline auto modularity(const G& x, T M, T R=T(1)) {
+  ASSERT(M>T() && R>T() && R<=T(1));
   auto fc = [](auto u) { return u; };
-  return modularity(x, fc, M, R);
+  return modularityBy(x, fc, M, R);
 }
 
 
@@ -99,5 +104,6 @@ inline auto modularity(const G& x, T M, T R=T(1)) {
  */
 template <class T>
 inline T deltaModularity(T vcout, T vdout, T vtot, T ctot, T dtot, T M, T R=T(1)) {
+  ASSERT(vcout>=T() && vdout>=T() && vtot>=T() && ctot>=T() && dtot>=T() && M>T() && R>T());
   return (vcout-vdout)/M - R*vtot*(vtot+ctot-dtot)/(2*M*M);
 }
