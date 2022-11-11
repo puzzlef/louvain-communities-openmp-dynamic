@@ -1,5 +1,6 @@
 #pragma once
 #include <utility>
+#include <algorithm>
 #include <vector>
 #include "_main.hxx"
 #include "Graph.hxx"
@@ -9,9 +10,10 @@
 using std::pair;
 using std::tuple;
 using std::vector;
-using std::get;
-using std::move;
 using std::make_pair;
+using std::move;
+using std::get;
+using std::min;
 
 
 
@@ -103,6 +105,21 @@ void louvainInitialize(vector<K>& vcom, vector<V>& ctot, const G& x, const vecto
     vcom[u] = u;
     ctot[u] = vtot[u];
   });
+}
+
+
+/**
+ * Initialize communities from given initial communities.
+ * @param vcom community each vertex belongs to (updated, should be initialized to 0)
+ * @param ctot total edge weight of each community (updated, should be initilized to 0)
+ * @param x original graph
+ * @param vtot total edge weight of each vertex
+ * @param q initial community each vertex belongs to
+ */
+template <class G, class K, class V>
+void louvainInitializeFrom(vector<K>& vcom, vector<V>& ctot, const G& x, const vector<V>& vtot, const vector<K>& q) {
+  copyValues(q, vcom, 0, min(q.size(), vcom.size()));
+  louvainCommunityWeights(ctot, x, vcom, vtot);
 }
 
 
