@@ -28,8 +28,8 @@ using std::min;
  * @param c community to move to
  * @param vtot total edge weight of each vertex
  */
-template <class G, class K, class V>
-void louvainChangeCommunityOmp(vector<K>& vcom, vector<V>& ctot, const G& x, K u, K c, const vector<V>& vtot) {
+template <class G, class K, class W>
+void louvainChangeCommunityOmp(vector<K>& vcom, vector<W>& ctot, const G& x, K u, K c, const vector<W>& vtot) {
   K d = vcom[u];
   #pragma omp atomic
   ctot[d] -= vtot[u];
@@ -60,12 +60,12 @@ void louvainChangeCommunityOmp(vector<K>& vcom, vector<V>& ctot, const G& x, K u
  * @param fp process vertices whose communities have changed
  * @returns iterations performed
  */
-template <class G, class K, class V, class FA, class FP>
-int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa, FP fp) {
-  K S = x.span();
-  int l = 0; V Q = V();
+template <class G, class K, class W, class FA, class FP>
+int louvainMoveOmp(vector<K>& vcom, vector<W>& ctot, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L, FA fa, FP fp) {
+  size_t S = x.span();
+  int l = 0;
   for (; l<L;) {
-    V el = V();
+    W el = W();
     #pragma omp parallel for schedule(auto) reduction(+:el)
     for (K u=K(); u<S; ++u) {
       int t = omp_get_thread_num();
@@ -81,13 +81,13 @@ int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, ve
   }
   return l;
 }
-template <class G, class K, class V, class FA>
-inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa) {
+template <class G, class K, class W, class FA>
+inline int louvainMoveOmp(vector<K>& vcom, vector<W>& ctot, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L, FA fa) {
   auto fp = [](auto u) {};
   return louvainMoveOmp(vcom, ctot, vcs, vcout, x, vtot, M, R, E, L, fa, fp);
 }
-template <class G, class K, class V>
-inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L) {
+template <class G, class K, class W>
+inline int louvainMoveOmp(vector<K>& vcom, vector<W>& ctot, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L) {
   auto fa = [](auto u) { return true; };
   return louvainMoveOmp(vcom, ctot, vcs, vcout, x, vtot, M, R, E, L, fa);
 }
@@ -106,9 +106,9 @@ inline int louvainMoveOmp(vector<K>& vcom, vector<V>& ctot, vector<vector<K>*>& 
  * @param x original graph
  * @param vcom community each vertex belongs to
  */
-template <class G, class K, class V>
-void louvainAggregateOmp(G& a, vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<K>& vcom) {
-  K S = x.span();
+template <class G, class K, class W>
+void louvainAggregateOmp(G& a, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<K>& vcom) {
+  size_t S = x.span();
   auto comv = louvainCommunityVertices(x, vcom);
   for (K c=0; c<comv.size(); ++c) {
     if (comv[c].empty()) continue;
@@ -126,8 +126,8 @@ void louvainAggregateOmp(G& a, vector<vector<K>*>& vcs, vector<vector<V>*>& vcou
   }
   a.correct();
 }
-template <class G, class K, class V>
-inline auto louvainAggregateOmp(vector<vector<K>*>& vcs, vector<vector<V>*>& vcout, const G& x, const vector<K>& vcom) {
+template <class G, class K, class W>
+inline auto louvainAggregateOmp(vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<K>& vcom) {
   G a; louvainAggregateOmp(a, vcs, vcout, x, vcom);
   return a;
 }
@@ -138,30 +138,31 @@ inline auto louvainAggregateOmp(vector<vector<K>*>& vcs, vector<vector<V>*>& vco
 // LOUVAIN-OMP
 // -----------
 
-template <class G, class K, class V, class FA, class FP>
-auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o, FA fa, FP fp) {
-  V   R = o.resolution;
-  V   D = o.passTolerance;
-  int L = o.maxIterations, l = 0;
-  int P = o.maxPasses, p = 0;
-  K   S = x.span();
-  V   M = edgeWeight(x)/2;
-  int T = omp_get_max_threads();
+template <class G, class K, class FA, class FP>
+auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FA fa, FP fp) {
+  using  W = LOUVAIN_WEIGHT_TYPE;
+  double R = o.resolution;
+  double D = o.passTolerance;
+  int    L = o.maxIterations, l = 0;
+  int    P = o.maxPasses, p = 0;
+  size_t S = x.span();
+  double M = edgeWeight(x)/2;
+  int    T = omp_get_max_threads();
   vector<K> vcom(S), a(S);
-  vector<V> vtot(S), ctot(S);
+  vector<W> vtot(S), ctot(S);
   vector<vector<K>*> vcs(T);
-  vector<vector<V>*> vcout(T);
+  vector<vector<W>*> vcout(T);
   for (int t=0; t<T; ++t) {
     vcs[t]   = new vector<K>();
-    vcout[t] = new vector<V>(S);
+    vcout[t] = new vector<W>(S);
   }
   float t = measureDurationMarked([&](auto mark) {
-    V E  = o.tolerance;
-    V Q0 = modularity(x, M, R);
-    G y  = duplicate(x);
+    double E  = o.tolerance;
+    double Q0 = modularity(x, M, R);
+    G y = duplicate(x);
     fillValueU(vcom, K());
-    fillValueU(vtot, V());
-    fillValueU(ctot, V());
+    fillValueU(vtot, W());
+    fillValueU(ctot, W());
     mark([&]() {
       louvainVertexWeights(vtot, y);
       louvainInitialize(vcom, ctot, y, vtot);
@@ -180,11 +181,11 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o, FA f
         // if (N1==N0) break;
         louvainLookupCommunities(a, vcom);
         PRINTFD("louvainOmp(): p=%d, l=%d, m=%d, Q=%f\n", p, l, m, modularity(y, M, R));
-        V Q = D? modularity(y, M, R) : V();
+        double Q = D? modularity(y, M, R) : 0;
         if (D && Q-Q0<=D) break;
         fillValueU(vcom, K());
-        fillValueU(vtot, V());
-        fillValueU(ctot, V());
+        fillValueU(vtot, W());
+        fillValueU(ctot, W());
         louvainVertexWeights(vtot, y);
         louvainInitialize(vcom, ctot, y, vtot);
         E /= o.tolerenceDeclineFactor;
@@ -198,13 +199,13 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o, FA f
   }
   return LouvainResult<K>(a, l, p, t);
 }
-template <class G, class K, class V, class FA>
-inline auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o, FA fa) {
+template <class G, class K, class FA>
+inline auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FA fa) {
   auto fp = [](auto u) {};
   return louvainOmp(x, q, o, fa, fp);
 }
-template <class G, class K, class V>
-inline auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& o) {
+template <class G, class K>
+inline auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o) {
   auto fa = [](auto u) { return true; };
   return louvainOmp(x, q, o, fa);
 }
@@ -215,8 +216,8 @@ inline auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions<V>& 
 // LOUVAIN-OMP-STATIC
 // ------------------
 
-template <class G, class K, class V=float>
-inline auto louvainOmpStatic(const G& x, const vector<K>* q=nullptr, const LouvainOptions<V>& o={}) {
+template <class G, class K>
+inline auto louvainOmpStatic(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
   return louvainOmp(x, q, o);
 }
 
@@ -227,12 +228,13 @@ inline auto louvainOmpStatic(const G& x, const vector<K>* q=nullptr, const Louva
 // -----------------------------------
 
 template <class G, class K, class V>
-inline auto louvainOmpDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions<V>& o={}) {
-  K S = x.span();
-  V R = o.resolution;
-  V M = edgeWeight(x)/2;
+inline auto louvainOmpDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+  using  W = LOUVAIN_WEIGHT_TYPE;
+  size_t S = x.span();
+  double R = o.resolution;
+  double M = edgeWeight(x)/2;
   const vector<K>& vcom = *q;
-  vector<V> vtot(S), ctot(S);
+  vector<W> vtot(S), ctot(S);
   louvainVertexWeights(vtot, x);
   louvainCommunityWeights(ctot, x, vcom, vtot);
   auto vaff = louvainAffectedVerticesDeltaScreening(x, deletions, insertions, vcom, vtot, ctot, M, R);
@@ -247,8 +249,8 @@ inline auto louvainOmpDynamicDeltaScreening(const G& x, const vector<tuple<K, K>
 // ----------------------------
 
 template <class G, class K, class V>
-inline auto louvainOmpDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions<V>& o={}) {
-  K S = x.span();
+inline auto louvainOmpDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+  size_t S = x.span();
   const vector<K>& vcom = *q;
   auto vaff = louvainAffectedVerticesFrontier(x, deletions, insertions, vcom);
   auto fa = [&](auto u) { return vaff[u]==true; };

@@ -21,19 +21,21 @@ using std::min;
 // LOUVAIN-OPTIONS
 // ---------------
 
-template <class T>
 struct LouvainOptions {
-  int repeat;
-  T   resolution;
-  T   tolerance;
-  T   passTolerance;
-  T   tolerenceDeclineFactor;
-  int maxIterations;
-  int maxPasses;
+  int    repeat;
+  double resolution;
+  double tolerance;
+  double passTolerance;
+  double tolerenceDeclineFactor;
+  int    maxIterations;
+  int    maxPasses;
 
-  LouvainOptions(int repeat=1, T resolution=1, T tolerance=1e-2, T passTolerance=0, T tolerenceDeclineFactor=10, int maxIterations=500, int maxPasses=500) :
+  LouvainOptions(int repeat=1, double resolution=1, double tolerance=1e-2, double passTolerance=0, double tolerenceDeclineFactor=10, int maxIterations=500, int maxPasses=500) :
   repeat(repeat), resolution(resolution), tolerance(tolerance), passTolerance(passTolerance), tolerenceDeclineFactor(tolerenceDeclineFactor), maxIterations(maxIterations), maxPasses(maxPasses) {}
 };
+
+// Weight to be using in hashtable.
+#define LOUVAIN_WEIGHT_TYPE double
 
 
 
@@ -66,8 +68,8 @@ struct LouvainResult {
  * @param vtot total edge weight of each vertex (updated, should be initialized to 0)
  * @param x original graph
  */
-template <class G, class V>
-void louvainVertexWeights(vector<V>& vtot, const G& x) {
+template <class G, class W>
+inline void louvainVertexWeights(vector<W>& vtot, const G& x) {
   x.forEachVertexKey([&](auto u) {
     x.forEachEdge(u, [&](auto v, auto w) {
       vtot[u] += w;
@@ -83,8 +85,8 @@ void louvainVertexWeights(vector<V>& vtot, const G& x) {
  * @param vcom community each vertex belongs to
  * @param vtot total edge weight of each vertex
  */
-template <class G, class K, class V>
-void louvainCommunityWeights(vector<V>& ctot, const G& x, const vector<K>& vcom, const vector<V>& vtot) {
+template <class G, class K, class W>
+inline void louvainCommunityWeights(vector<W>& ctot, const G& x, const vector<K>& vcom, const vector<W>& vtot) {
   x.forEachVertexKey([&](auto u) {
     K c = vcom[u];
     ctot[c] += vtot[u];
@@ -99,8 +101,8 @@ void louvainCommunityWeights(vector<V>& ctot, const G& x, const vector<K>& vcom,
  * @param x original graph
  * @param vtot total edge weight of each vertex
  */
-template <class G, class K, class V>
-void louvainInitialize(vector<K>& vcom, vector<V>& ctot, const G& x, const vector<V>& vtot) {
+template <class G, class K, class W>
+inline void louvainInitialize(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot) {
   x.forEachVertexKey([&](auto u) {
     vcom[u] = u;
     ctot[u] = vtot[u];
@@ -116,8 +118,8 @@ void louvainInitialize(vector<K>& vcom, vector<V>& ctot, const G& x, const vecto
  * @param vtot total edge weight of each vertex
  * @param q initial community each vertex belongs to
  */
-template <class G, class K, class V>
-void louvainInitializeFrom(vector<K>& vcom, vector<V>& ctot, const G& x, const vector<V>& vtot, const vector<K>& q) {
+template <class G, class K, class W>
+inline void louvainInitializeFrom(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot, const vector<K>& q) {
   copyValues(q, vcom, 0, min(q.size(), vcom.size()));
   louvainCommunityWeights(ctot, x, vcom, vtot);
 }
@@ -137,8 +139,8 @@ void louvainInitializeFrom(vector<K>& vcom, vector<V>& ctot, const G& x, const v
  * @param w outgoing edge weight
  * @param vcom community each vertex belongs to
  */
-template <bool SELF=false, class K, class V>
-void louvainScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<K>& vcom) {
+template <bool SELF=false, class K, class V, class W>
+inline void louvainScanCommunity(vector<K>& vcs, vector<W>& vcout, K u, K v, V w, const vector<K>& vcom) {
   if (!SELF && u==v) return;
   K c = vcom[v];
   if (!vcout[c]) vcs.push_back(c);
@@ -154,8 +156,8 @@ void louvainScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const
  * @param u given vertex
  * @param vcom community each vertex belongs to
  */
-template <bool SELF=false, class G, class K, class V>
-void louvainScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u, const vector<K>& vcom) {
+template <bool SELF=false, class G, class K, class W>
+inline void louvainScanCommunities(vector<K>& vcs, vector<W>& vcout, const G& x, K u, const vector<K>& vcom) {
   x.forEachEdge(u, [&](auto v, auto w) { louvainScanCommunity<SELF>(vcs, vcout, u, v, w, vcom); });
 }
 
@@ -165,10 +167,10 @@ void louvainScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u, c
  * @param vcs total edge weight from vertex u to community C (updated)
  * @param vcout communities vertex u is linked to (updated)
  */
-template <class K, class V>
-void louvainClearScan(vector<K>& vcs, vector<V>& vcout) {
+template <class K, class W>
+inline void louvainClearScan(vector<K>& vcs, vector<W>& vcout) {
   for (K c : vcs)
-    vcout[c] = V();
+    vcout[c] = W();
   vcs.clear();
 }
 
@@ -186,13 +188,13 @@ void louvainClearScan(vector<K>& vcs, vector<V>& vcout) {
  * @param R resolution (0, 1]
  * @returns [best community, delta modularity]
  */
-template <bool SELF=false, class G, class K, class V>
-auto louvainChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector<V>& vtot, const vector<V>& ctot, const vector<K>& vcs, const vector<V>& vcout, V M, V R) {
+template <bool SELF=false, class G, class K, class V, class W>
+inline auto louvainChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, const vector<K>& vcs, const vector<W>& vcout, double M, double R) {
   K cmax = K(), d = vcom[u];
-  V emax = V();
+  W emax = W();
   for (K c : vcs) {
     if (!SELF && c==d) continue;
-    V e = deltaModularity(vcout[c], vcout[d], vtot[u], ctot[c], ctot[d], M, R);
+    W e = deltaModularity(vcout[c], vcout[d], vtot[u], ctot[c], ctot[d], M, R);
     if (e>emax) { emax = e; cmax = c; }
   }
   return make_pair(cmax, emax);
@@ -208,8 +210,8 @@ auto louvainChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector
  * @param c community to move to
  * @param vtot total edge weight of each vertex
  */
-template <class G, class K, class V>
-void louvainChangeCommunity(vector<K>& vcom, vector<V>& ctot, const G& x, K u, K c, const vector<V>& vtot) {
+template <class G, class K, class W>
+void louvainChangeCommunity(vector<K>& vcom, vector<W>& ctot, const G& x, K u, K c, const vector<W>& vtot) {
   K d = vcom[u];
   ctot[d] -= vtot[u];
   ctot[c] += vtot[u];
@@ -238,12 +240,12 @@ void louvainChangeCommunity(vector<K>& vcom, vector<V>& ctot, const G& x, K u, K
  * @param fp process vertices whose communities have changed
  * @returns iterations performed
  */
-template <class G, class K, class V, class FA, class FP>
-int louvainMove(vector<K>& vcom, vector<V>& ctot, vector<K>& vcs, vector<V>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa, FP fp) {
-  K S = x.span();
-  int l = 0; V Q = V();
+template <class G, class K, class W, class FA, class FP>
+int louvainMove(vector<K>& vcom, vector<W>& ctot, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L, FA fa, FP fp) {
+  size_t S = x.span();
+  int l = 0;
   for (; l<L;) {
-    V el = V();
+    W el = W();
     x.forEachVertexKey([&](auto u) {
       if (!fa(u)) return;
       louvainClearScan(vcs, vcout);
@@ -256,13 +258,13 @@ int louvainMove(vector<K>& vcom, vector<V>& ctot, vector<K>& vcs, vector<V>& vco
   }
   return l;
 }
-template <class G, class K, class V, class FA>
-inline int louvainMove(vector<K>& vcom, vector<V>& ctot, vector<K>& vcs, vector<V>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L, FA fa) {
+template <class G, class K, class W, class FA>
+inline int louvainMove(vector<K>& vcom, vector<W>& ctot, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L, FA fa) {
   auto fp = [](auto u) {};
   return louvainMove(vcom, ctot, vcs, vcout, x, vtot, M, R, E, L, fa, fp);
 }
-template <class G, class K, class V>
-inline int louvainMove(vector<K>& vcom, vector<V>& ctot, vector<K>& vcs, vector<V>& vcout, const G& x, const vector<V>& vtot, V M, V R, V E, int L) {
+template <class G, class K, class W>
+inline int louvainMove(vector<K>& vcom, vector<W>& ctot, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L) {
   auto fa = [](auto u) { return true; };
   return louvainMove(vcom, ctot, vcs, vcout, x, vtot, M, R, E, L, fa);
 }
@@ -275,7 +277,7 @@ inline int louvainMove(vector<K>& vcom, vector<V>& ctot, vector<K>& vcs, vector<
 
 template <class G, class K>
 auto louvainCommunityVertices(const G& x, const vector<K>& vcom) {
-  K S = x.span();
+  size_t S = x.span();
   vector2d<K> a(S);
   x.forEachVertexKey([&](auto u) { a[vcom[u]].push_back(u); });
   return a;
@@ -290,9 +292,9 @@ auto louvainCommunityVertices(const G& x, const vector<K>& vcom) {
  * @param x original graph
  * @param vcom community each vertex belongs to
  */
-template <class G, class K, class V>
-void louvainAggregate(G& a, vector<K>& vcs, vector<V>& vcout, const G& x, const vector<K>& vcom) {
-  K S = x.span();
+template <class G, class K, class W>
+void louvainAggregate(G& a, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom) {
+  size_t S = x.span();
   auto comv = louvainCommunityVertices(x, vcom);
   for (K c=0; c<comv.size(); ++c) {
     if (comv[c].empty()) continue;
@@ -305,8 +307,8 @@ void louvainAggregate(G& a, vector<K>& vcs, vector<V>& vcout, const G& x, const 
   }
   a.correct();
 }
-template <class G, class K, class V>
-inline auto louvainAggregate(vector<K>& vcs, vector<V>& vcout, const G& x, const vector<K>& vcom) {
+template <class G, class K, class W>
+inline auto louvainAggregate(vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom) {
   G a; louvainAggregate(a, vcs, vcout, x, vcom);
   return a;
 }
@@ -352,10 +354,10 @@ void louvainLookupCommunities(vector<K>& a, const vector<K>& vcom) {
  * @param R resolution (0, 1]
  * @returns flags for each vertex marking whether it is affected
  */
-template <class G, class K, class V>
-auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<V>& vtot, const vector<V>& ctot, V M, V R=V(1)) {
-  K S = x.span();
-  vector<K> vcs; vector<V> vcout(S);
+template <class G, class K, class V, class W>
+auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
+  size_t S = x.span();
+  vector<K> vcs; vector<W> vcout(S);
   vector<bool> vertices(S), neighbors(S), communities(S);
   for (const auto& [u, v] : deletions) {
     if (vcom[u] != vcom[v]) continue;
@@ -407,7 +409,7 @@ auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>
  */
 template <class G, class K, class V>
 auto louvainAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
-  K S = x.span();
+  size_t S = x.span();
   vector<bool> vertices(S);
   for (const auto& [u, v] : deletions) {
     if (vcom[u] != vcom[v]) continue;
