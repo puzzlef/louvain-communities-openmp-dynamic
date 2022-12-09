@@ -30,8 +30,9 @@ double getModularity(const G& x, const LouvainResult<K>& a, double M) {
 }
 
 
-template <class G, class R, class K, class V>
-auto addRandomEdges(G& a, R& rnd, K span, V w, int batchSize) {
+template <class G, class R, class V>
+auto addRandomEdges(G& a, R& rnd, size_t span, V w, int batchSize) {
+  using K = typename G::key_type;
   int retries = 5;
   vector<tuple<K, K, V>> insertions;
   auto fe = [&](auto u, auto v, auto w) {
@@ -136,7 +137,7 @@ int main(int argc, char **argv) {
   char *file = argv[1];
   bool sym   = argc>2? stoi(argv[2]) : false;
   int repeat = argc>3? stoi(argv[3]) : 5;
-  OutDiGraph<K, None, V> x; V w = 1;
+  OutDiGraph<K, None, V> x;  // V w = 1;
   printf("Loading graph %s ...\n", file);
   readMtxW(x, file); println(x);
   if (!sym) { x = symmetricize(x); print(x); printf(" (symmetricize)\n"); }

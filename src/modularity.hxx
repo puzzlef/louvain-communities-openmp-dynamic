@@ -101,7 +101,6 @@ inline double modularity(const G& x, double M, double R=1.0) {
  * @returns delta-modularity [-0.5, 1]
  * @see https://gist.github.com/wolfram77/a3c95cd94a38a100f9b075594a823928
  */
-template <class T>
 inline double deltaModularity(double vcout, double vdout, double vtot, double ctot, double dtot, double M, double R=1.0) {
   ASSERT(vcout>=0.0 && vdout>=0.0 && vtot>=0.0 && ctot>=0.0 && dtot>=0.0 && M>0.0 && R>0.0);
   return (vcout-vdout)/M - R*vtot*(vtot+ctot-dtot)/(2*M*M);

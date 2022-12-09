@@ -188,7 +188,7 @@ inline void louvainClearScan(vector<K>& vcs, vector<W>& vcout) {
  * @param R resolution (0, 1]
  * @returns [best community, delta modularity]
  */
-template <bool SELF=false, class G, class K, class V, class W>
+template <bool SELF=false, class G, class K, class W>
 inline auto louvainChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, const vector<K>& vcs, const vector<W>& vcout, double M, double R) {
   K cmax = K(), d = vcom[u];
   W emax = W();
