@@ -17,16 +17,16 @@ using namespace std;
 #endif
 // You can define number of threads with -DMAX_THREADS=...
 #ifndef MAX_THREADS
-#define MAX_THREADS 12
+#define MAX_THREADS 32
 #endif
 
 
 
 
-template <class G, class K, class V>
-double getModularity(const G& x, const LouvainResult<K>& a, V M) {
+template <class G, class K>
+double getModularity(const G& x, const LouvainResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
-  return modularityBy(x, fc, M, V(1));
+  return modularityBy(x, fc, M, 1.0);
 }
 
 
@@ -74,20 +74,19 @@ void runLouvain(const G& x, int repeat) {
   vector<K> *init = nullptr;
   random_device dev;
   default_random_engine rnd(dev());
-  int retries  = 5;
-  auto M = edgeWeight(x)/2;
-  auto Q = modularity(x, M, 1.0f);
+  int retries = 5;
+  double M = edgeWeight(x)/2;
+  double Q = modularity(x, M, 1.0f);
   printf("[%01.6f modularity] noop\n", Q);
 
   // Get community memberships on original graph (static).
-  auto ak = louvainSeqStatic(x, init, {repeat});
-  printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n", 0.0, ak.time, ak.iterations, ak.passes, getModularity(x, ak, M));
+  auto ak = louvainSeqStatic(x, init);
   // Batch of additions only (dynamic).
   for (int batchSize=500, i=0; batchSize<=100000; batchSize*=i&1? 5:2, ++i) {
     for (int batchCount=1; batchCount<=5; ++batchCount) {
-      auto y = duplicate(x);
+      auto   y = duplicate(x);
       auto insertions = addRandomEdges(y, rnd, x.span(), V(1), batchSize); vector<tuple<K, K>> deletions;
-      auto M = edgeWeight(y)/2;
+      double M = edgeWeight(y)/2;
       // Find static Louvain (sequential).
       auto al = louvainSeqStatic(y, init, {repeat});
       printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
@@ -108,9 +107,9 @@ void runLouvain(const G& x, int repeat) {
   // Batch of deletions only (dynamic).
   for (int batchSize=500, i=0; batchSize<=100000; batchSize*=i&1? 5:2, ++i) {
     for (int batchCount=1; batchCount<=5; ++batchCount) {
-      auto y = duplicate(x);
+      auto   y = duplicate(x);
       auto deletions = removeRandomEdges(y, rnd, batchSize); vector<tuple<K, K, V>> insertions;
-      auto M = edgeWeight(y)/2;
+      double M = edgeWeight(y)/2;
       // Find static Louvain (sequential).
       auto al = louvainSeqStatic(y, init, {repeat});
       printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(-batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
@@ -132,19 +131,20 @@ void runLouvain(const G& x, int repeat) {
 
 
 int main(int argc, char **argv) {
-  using K = int;
+  using K = uint32_t;
   using V = TYPE;
   char *file = argv[1];
-  int repeat = argc>2? stoi(argv[2]) : 5;
+  bool sym   = argc>2? stoi(argv[2]) : false;
+  int repeat = argc>3? stoi(argv[3]) : 5;
   OutDiGraph<K, None, V> x; V w = 1;
   printf("Loading graph %s ...\n", file);
   readMtxW(x, file); println(x);
-  auto y = symmetricize(x); print(y); printf(" (symmetricize)\n");
+  if (!sym) { x = symmetricize(x); print(x); printf(" (symmetricize)\n"); }
   // auto fl = [](auto u) { return true; };
   // selfLoopU(y, w, fl); print(y); printf(" (selfLoopAllVertices)\n");
   omp_set_num_threads(MAX_THREADS);
   printf("OMP_NUM_THREADS=%d\n", MAX_THREADS);
-  runLouvain(y, repeat);
+  runLouvain(x, repeat);
   printf("\n");
   return 0;
 }
