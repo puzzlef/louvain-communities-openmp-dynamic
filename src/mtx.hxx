@@ -41,10 +41,11 @@ void readMtxDo(istream& s, FV fv, FE fe) {
   stringstream ls(ln);
   ls >> r >> c >> sz;
   size_t n = max(r, c);
-  for (size_t u=1; u<=n; u++)
+  for (size_t u=1; u<=n; ++u)
     fv(u);  // a.addVertex(u);
 
   // read edges (from, to)
+  size_t M = 0;
   while (getline(s, ln)) {
     size_t u, v;
     double w = 1;

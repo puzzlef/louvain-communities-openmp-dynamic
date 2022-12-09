@@ -68,7 +68,7 @@ inline auto recursiveDeadEnds(const G& x) {
 }
 template <class G>
 inline auto recursiveDeadEndCount(const G& x) {
-  using K = typename G::key_type; K a = 0;
+  size_t a = 0;
   recursiveDeadEndsForEach(x, [&](auto u) { ++a; });
   return a;
 }

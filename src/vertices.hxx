@@ -36,8 +36,8 @@ inline auto vertexValues(const G& x) {
 // VERTEX-DEGREES
 // --------------
 
-template <class G, class J, class FM>
-inline auto vertexDegrees(const G& x, const J& ks, FM fm) {
+template <class G, class KS, class FM>
+inline auto vertexDegrees(const G& x, const KS& ks, FM fm) {
   using K = typename G::key_type;
   using T = remove_reference_t<decltype(fm(K(), K()))>;
   vector<T> a;
@@ -45,8 +45,8 @@ inline auto vertexDegrees(const G& x, const J& ks, FM fm) {
     a.push_back(fm(u, x.degree(u)));
   return a;
 }
-template <class G, class J>
-inline auto vertexDegrees(const G& x, const J& ks) {
+template <class G, class KS>
+inline auto vertexDegrees(const G& x, const KS& ks) {
   auto fm = [](auto u, auto d) { return d; };
   return vertexDegrees(x, ks, fm);
 }
@@ -61,8 +61,8 @@ inline auto vertexDegrees(const G& x) {
 // VERTEX-DATA
 // -----------
 
-template <class G, class J, class FM>
-inline auto vertexData(const G& x, const J& ks, FM fm) {
+template <class G, class KS, class FM>
+inline auto vertexData(const G& x, const KS& ks, FM fm) {
   using K = typename G::key_type;
   using V = typename G::vertex_value_type;
   using T = remove_reference_t<decltype(fm(K(), V()))>;
@@ -71,8 +71,8 @@ inline auto vertexData(const G& x, const J& ks, FM fm) {
     a.push_back(fm(u, x.vertexValue(u)));
   return a;
 }
-template <class G, class J>
-inline auto vertexData(const G& x, const J& ks) {
+template <class G, class KS>
+inline auto vertexData(const G& x, const KS& ks) {
   auto fm = [&](auto u, auto d) { return d; };
   return vertexData(x, ks, fm);
 }
@@ -102,8 +102,8 @@ inline auto createCompressedContainer(const G& x, const T& _) {
 // DECOMPRESS-CONTAINER
 // --------------------
 
-template <class G, class T, class J>
-inline void decompressContainerW(vector<T>& a, const G& x, const vector<T>& vs, const J& ks) {
+template <class G, class T, class KS>
+inline void decompressContainerW(vector<T>& a, const G& x, const vector<T>& vs, const KS& ks) {
   scatterValuesW(a, vs, ks);
 }
 template <class G, class T>
@@ -111,8 +111,8 @@ inline void decompressContainerW(vector<T>& a, const G& x, const vector<T>& vs) 
   decompressContainerW(a, x, vs, x.vertexKeys());
 }
 
-template <class G, class T, class J>
-inline auto decompressContainer(const G& x, const vector<T>& vs, const J& ks) {
+template <class G, class T, class KS>
+inline auto decompressContainer(const G& x, const vector<T>& vs, const KS& ks) {
   auto a = createContainer(x, T());
   decompressContainerW(a, x, vs, ks);
   return a;
@@ -150,8 +150,8 @@ inline auto decompressKeyContainer(const G& x, const vector<K>& vs) {
 // COMPRESS-CONTAINER
 // ------------------
 
-template <class G, class T, class J>
-inline void compressContainerW(vector<T>& a, const G& x, const vector<T>& vs, const J& ks) {
+template <class G, class T, class KS>
+inline void compressContainerW(vector<T>& a, const G& x, const vector<T>& vs, const KS& ks) {
   gatherValuesW(a, vs, ks);
 }
 template <class G, class T>
@@ -159,8 +159,8 @@ inline void compressContainerW(vector<T>& a, const G& x, const vector<T>& vs) {
   return compressContainerW(a, x, vs, x.vertexKeys());
 }
 
-template <class G, class T, class J>
-inline auto compressContainer(const G& x, const vector<T>& vs, const J& ks) {
+template <class G, class T, class KS>
+inline auto compressContainer(const G& x, const vector<T>& vs, const KS& ks) {
   auto a = createCompressedContainer(x, T());
   compressContainerW(a, x, vs, ks);
   return a;
@@ -171,8 +171,8 @@ inline auto compressContainer(const G& x, const vector<T>& vs) {
 }
 
 
-template <class G, class K, class J>
-inline void compressKeyContainerW(vector<K>& a, const G& x, const vector<K>& vs, const J& ks) {
+template <class G, class K, class KS>
+inline void compressKeyContainerW(vector<K>& a, const G& x, const vector<K>& vs, const KS& ks) {
   auto m  = valueIndicesUnorderedMap(ks);
   auto fm = [&](auto k) { return m[k]; };
   gatherValuesW(a, vs, ks, fm);
@@ -182,8 +182,8 @@ inline void compressKeyContainerW(vector<K>& a, const G& x, const vector<K>& vs)
   return compressKeyContainerW(a, x, vs, x.vertexKeys());
 }
 
-template <class G, class K, class J>
-inline auto compressKeyContainer(const G& x, const vector<K>& vs, const J& ks) {
+template <class G, class K, class KS>
+inline auto compressKeyContainer(const G& x, const vector<K>& vs, const KS& ks) {
   auto a = createCompressedContainer(x, K());
   compressKeyContainerW(a, x, vs, ks);
   return a;

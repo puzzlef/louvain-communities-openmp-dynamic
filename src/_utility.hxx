@@ -37,15 +37,20 @@ inline auto timeNow() {
   return high_resolution_clock::now();
 }
 template <class T>
-float durationMilliseconds(const T& start, const T& stop) {
+inline float durationMilliseconds(const T& start, const T& stop) {
   ASSERT(stop >= start);
   auto a = duration_cast<microseconds>(stop - start);
   return a.count()/1000.0f;
 }
+template <class T>
+inline float durationMilliseconds(const T& start) {
+  auto stop = timeNow();
+  return durationMilliseconds(start, stop);
+}
 
 
 template <class F>
-float measureDuration(F fn, int N=1) {
+inline float measureDuration(F fn, int N=1) {
   ASSERT(N>0);
   auto start = high_resolution_clock::now();
   for (int i=0; i<N; i++)
@@ -56,7 +61,7 @@ float measureDuration(F fn, int N=1) {
 
 
 template <class F>
-float measureDurationMarked(F fn, int N=1) {
+inline float measureDurationMarked(F fn, int N=1) {
   ASSERT(N>0);
   float duration = 0;
   for (int i=0; i<N; i++)
@@ -71,7 +76,7 @@ float measureDurationMarked(F fn, int N=1) {
 // -----
 
 template <class F>
-bool retry(F fn, int N=2) {
+inline bool retry(F fn, int N=2) {
   ASSERT(N>0);
   for (int i=0; i<N; i++)
     if (fn()) return true;

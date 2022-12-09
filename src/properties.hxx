@@ -27,7 +27,7 @@ inline auto degrees(const G& x) {
 template <class G>
 auto minDegree(const G& x) {
   using K = typename G::key_type;
-  K min = x.order();
+  K min = K(x.order());
   x.forEachVertexKey([&](auto u) {
     auto d = x.degree(u);
     if (d<min) min = d;
@@ -47,17 +47,16 @@ auto maxDegree(const G& x) {
 }
 
 template <class G>
-inline float avgDegree(const G& x) {
+inline double avgDegree(const G& x) {
   size_t N = x.order();
-  return N==0? 0 : x.size()/float(N);
+  return N==0? 0 : x.size()/double(N);
 }
 
 
 template <class G>
 auto minMaxAvgDegree(const G& x) {
   using K = typename G::key_type;
-  K min = x.order();
-  K max = 0;
+  K min = K(x.order()), max = 0;
   x.forEachVertexKey([&](auto u) {
     auto d = x.degree(u);
     if (d<min) min = d;
@@ -74,8 +73,8 @@ auto minMaxAvgDegree(const G& x) {
 // Fully connectedness fraction.
 
 template <class G>
-inline float density(const G& x) {
-  float N = x.order();
+inline double density(const G& x) {
+  double N = x.order();
   return N>0? x.size()/(N*N) : 0;
 }
 
@@ -92,8 +91,8 @@ inline float density(const G& x) {
  * @returns total outgoing weight of a vertex
  */
 template <class G, class K>
-inline auto edgeWeight(const G& x, K u) {
-  using E = typename G::edge_value_type; E a = E();
+inline double edgeWeight(const G& x, K u) {
+  double a = 0;
   x.forEachEdgeValue(u, [&](auto w) { a += w; });
   return a;
 }
@@ -105,8 +104,8 @@ inline auto edgeWeight(const G& x, K u) {
  * @returns total edge weight (undirected graph => each edge considered twice)
  */
 template <class G>
-auto edgeWeight(const G& x) {
-  using E = typename G::edge_value_type; E a = E();
+inline double edgeWeight(const G& x) {
+  double a = 0;
   x.forEachVertexKey([&](auto u) { a += edgeWeight(x, u); });
   return a;
 }

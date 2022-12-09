@@ -1,10 +1,12 @@
 #pragma once
 #include <cmath>
 #include <type_traits>
+#include <random>
 
-using std::is_floating_point;
 using std::ceil;
 using std::sqrt;
+using std::is_floating_point;
+using std::uniform_int_distribution;
 
 
 
@@ -89,4 +91,15 @@ template <class T>
 T nextPrime(T x) {
   while (true)
     if (isPrime(++x)) return x;
+}
+
+
+template <class T, class R>
+T randomPrime(T begin, T end, R& rnd) {
+  uniform_int_distribution<T> dis(begin, end);
+  for (int i=128; i>0; --i) {
+    T a = dis(rnd);
+    if (isPrime(a)) return a;
+  }
+  return end-1;
 }

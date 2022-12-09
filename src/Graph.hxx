@@ -35,13 +35,13 @@ using std::cout;
 
 #ifndef GRAPH_SIZE
 #define GRAPH_SIZE(K, V, E, N, M, vexists)  \
-  inline K span()  const noexcept { return K(vexists.size()); } \
-  inline K order() const noexcept { return K(N); } \
-  inline size_t size() const noexcept { return M; }
+  inline size_t span()  const noexcept { return vexists.size(); } \
+  inline size_t order() const noexcept { return N; } \
+  inline size_t size()  const noexcept { return M; }
 #define GRAPH_SIZE_FROM(K, V, E, x) \
-  inline K span()  const noexcept { return x.span(); } \
-  inline K order() const noexcept { return x.order(); } \
-  inline size_t size() const noexcept { return x.size(); }
+  inline size_t span()  const noexcept { return x.span(); } \
+  inline size_t order() const noexcept { return x.order(); } \
+  inline size_t size()  const noexcept { return x.size(); }
 #define GRAPH_EMPTY(K, V, E) \
   inline bool empty()   const noexcept { return order() == 0; }
 #define GRAPH_SIZES(K, V, E, N, M, vexists) \
@@ -721,7 +721,7 @@ class Graph : public OutDiGraph<K, V, E, Bitset> {
   // Access operations.
   public:
   GRAPH_BASE(K, V, E)
-  inline size_t inDegree(const K& v) const noexcept { return degree(v); }
+  inline K    inDegree(const K& v) const noexcept { return degree(v); }
   inline bool setEdgeValue(const K& u, const K& v, const E& d) noexcept {
     return G::setEdgeValue(u, v, d) && G::setEdgeValue(v, u, d);
   }

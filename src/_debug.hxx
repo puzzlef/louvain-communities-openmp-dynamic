@@ -1,6 +1,13 @@
 #pragma once
 #include <cassert>
 #include "_iostream.hxx"
+#if !defined(NDEBUG) && defined(BUILD) && BUILD>=1
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+#include <signal.h>
+#include <execinfo.h>
+#endif
 
 
 
@@ -113,3 +120,29 @@
 #define PRINTLND(...) PERFORMD(println(__VA_ARGS__))
 #define PRINTLNT(...) PERFORMT(println(__VA_ARGS__))
 #endif
+
+
+
+
+// ON-SIGNAL
+// ---------
+
+#define STACK_TRACE_SIZE 32
+
+void on_sigsegv(int sig) {
+#if !defined(NDEBUG) && defined(BUILD) && BUILD>=1
+  void *entries[STACK_TRACE_SIZE];
+  size_t n = backtrace(entries, STACK_TRACE_SIZE);
+  fprintf(stderr, "ERROR: SIGNAL %d:\n", sig);
+  backtrace_symbols_fd(entries, n, STDERR_FILENO);
+  exit(1);
+#endif
+}
+// - https://stackoverflow.com/a/77336/1413259
+
+void install_sigsegv() {
+#if !defined(NDEBUG) && defined(BUILD) && BUILD>=1
+  signal(SIGSEGV, on_sigsegv);
+#endif
+}
+// - https://stackoverflow.com/a/77336/1413259

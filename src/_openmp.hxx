@@ -195,7 +195,7 @@ template <class T, class V=T>
 V maxValueOmp(const T *x, size_t N, V a=V()) {
   ASSERT(x);
   if (N<SIZE_MIN_OMPR) return maxValue(x, N, a);
-  #pragma omp parallel for schedule(auto) reduction(+:a)
+  #pragma omp parallel for schedule(auto) reduction(max:a)
   for (size_t i=0; i<N; ++i)
     a = max(a, x[i]);
   return a;
@@ -219,7 +219,7 @@ template <class T, class V=T>
 V maxAbsValueOmp(const T *x, size_t N, V a=V()) {
   ASSERT(x);
   if (N<SIZE_MIN_OMPR) return maxAbsValue(x, N, a);
-  #pragma omp parallel for schedule(auto) reduction(+:a)
+  #pragma omp parallel for schedule(auto) reduction(max:a)
   for (size_t i=0; i<N; ++i)
     a = max(a, abs(x[i]));
   return a;
@@ -266,7 +266,7 @@ template <class T, class V=T>
 V minValueOmp(const T *x, size_t N, V a=V()) {
   ASSERT(x);
   if (N<SIZE_MIN_OMPR) return minValue(x, N, a);
-  #pragma omp parallel for schedule(auto) reduction(+:a)
+  #pragma omp parallel for schedule(auto) reduction(min:a)
   for (size_t i=0; i<N; ++i)
     a = min(a, x[i]);
   return a;
@@ -290,7 +290,7 @@ template <class T, class V=T>
 V minAbsValueOmp(const T *x, size_t N, V a=V()) {
   ASSERT(x);
   if (N<SIZE_MIN_OMPR) return minAbsValue(x, N, a);
-  #pragma omp parallel for schedule(auto) reduction(+:a)
+  #pragma omp parallel for schedule(auto) reduction(min:a)
   for (size_t i=0; i<N; ++i)
     a = min(a, abs(x[i]));
   return a;
@@ -423,7 +423,7 @@ template <class TX, class TY, class V=TX>
 V liNormOmp(const TX *x, const TY *y, size_t N, V a=V()) {
   ASSERT(x && y);
   if (N<SIZE_MIN_OMPR) return liNorm(x, y, N, a);
-  #pragma omp parallel for schedule(auto) reduction(+:a)
+  #pragma omp parallel for schedule(auto) reduction(max:a)
   for (size_t i=0; i<N; i++)
     a = max(a, abs(x[i] - y[i]));
   return a;
@@ -442,7 +442,7 @@ template <class T, class V=T>
 V liNormOmp(const T *x, size_t N, V a=V()) {
   ASSERT(x);
   if (N<SIZE_MIN_OMPR) return liNorm(x, N, a);
-  #pragma omp parallel for schedule(auto) reduction(+:a)
+  #pragma omp parallel for schedule(auto) reduction(max:a)
   for (size_t i=0; i<N; i++)
     a = max(a, abs(x[i]));
   return a;

@@ -8,8 +8,9 @@ using std::uniform_real_distribution;
 // ADD-RANDOM-EDGE
 // ---------------
 
-template <class G, class R, class K, class V, class FE>
-bool addRandomEdge(const G& x, R& rnd, K span, V w, FE fe) {
+template <class G, class R, class V, class FE>
+bool addRandomEdge(const G& x, R& rnd, size_t span, V w, FE fe) {
+  using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   K u = K(dis(rnd) * span);
   K v = K(dis(rnd) * span);
@@ -17,20 +18,21 @@ bool addRandomEdge(const G& x, R& rnd, K span, V w, FE fe) {
   return true;
 }
 
-template <class G, class R, class K, class V>
-bool addRandomEdge(G& a, R& rnd, K span, V w) {
+template <class G, class R, class V>
+bool addRandomEdge(G& a, R& rnd, size_t span, V w) {
   auto fe = [&](auto u, auto v, auto w) { a.addEdge(u, v, w); };
   return addRandomEdge(a, rnd, span, w, fe);
 }
 
 
-template <class G, class R, class K, class V, class FE>
-bool addRandomEdgeByDegree(const G& x, R& rnd, K span, V w, FE fe) {
+template <class G, class R, class V, class FE>
+bool addRandomEdgeByDegree(const G& x, R& rnd, size_t span, V w, FE fe) {
+  using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   double deg = x.size() / x.span();
-  K un = K(dis(rnd) * deg * span);
-  K vn = K(dis(rnd) * deg * span);
-  K u = K(), v = K(), n = K();
+  size_t un = size_t(dis(rnd) * deg * span);
+  size_t vn = size_t(dis(rnd) * deg * span);
+  K u = 0, v = 0; size_t n = 0;
   x.forEachVertexKey([&](auto t) {
     if (un<0 && un > n+x.degree(t)) u = t;
     if (vn<0 && vn > n+x.degree(t)) v = t;
@@ -43,8 +45,8 @@ bool addRandomEdgeByDegree(const G& x, R& rnd, K span, V w, FE fe) {
   return true;
 }
 
-template <class G, class R, class K, class V>
-bool addRandomEdgeByDegree(G& a, R& rnd, K span, V w) {
+template <class G, class R, class V>
+bool addRandomEdgeByDegree(G& a, R& rnd, size_t span, V w) {
   auto fe = [&](auto u, auto v, auto w) { a.addEdge(u, v, w); };
   return addRandomEdgeByDegree(a, rnd, span, w, fe);
 }
@@ -94,7 +96,7 @@ template <class G, class R, class FE>
 bool removeRandomEdgeByDegree(const G& x, R& rnd, FE fe) {
   using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
-  K v = K(dis(rnd) * x.size()), n = 0;
+  size_t v = size_t(dis(rnd) * x.size()), n = 0;
   bool attempted = false, removed = false;
   x.forEachVertexKey([&](auto u) {
     if (attempted) return;
