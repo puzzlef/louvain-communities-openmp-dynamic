@@ -1,10 +1,10 @@
 #pragma once
-#include "duplicate.hxx"
+#include "update.hxx"
 
 
 
 
-// HAS-SELF-LOOP
+// HAS SELF-LOOP
 // -------------
 
 template <class G, class K>
@@ -38,16 +38,26 @@ inline auto selfLoopCount(const G& x) {
 
 
 
-// SELF-LOOPS
-// ----------
+// SELF-LOOP
+// ---------
 
 template <class G, class E, class FT>
-void selfLoopU(G& a, const E& w, FT ft) {
+inline void selfLoopU(G& a, E w, FT ft) {
   a.forEachVertexKey([&](auto u) { if (ft(u)) a.addEdge(u, u, w); });
-  a.correct();
+  a.update();
 }
 template <class G, class E, class FT>
-auto selfLoop(const G& x, const E& w, FT ft) {
-  auto a = duplicate(x); selfLoopU(a, w, ft);
+inline auto selfLoop(const G& x, E w, FT ft) {
+  G a = x; selfLoopU(a, w, ft);
   return a;
+}
+
+
+template <class G, class E, class FT>
+inline void selfLoopOmpU(G& a, E w, FT ft) {
+  #pragma omp parallel
+  {
+    a.forEachVertexKey([&](auto u) { if (ft(u)) addEdgeOmpU(a, u, u, w); });
+  }
+  updateOmpU(a);
 }

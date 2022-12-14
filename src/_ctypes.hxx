@@ -1,9 +1,20 @@
 #pragma once
+#include <cstddef>
+#include <type_traits>
 #include <istream>
 #include <ostream>
 
+using std::make_signed_t;
 using std::istream;
 using std::ostream;
+
+
+
+
+// BASIC
+// -----
+
+using ssize_t = make_signed_t<size_t>;
 
 
 
@@ -36,7 +47,7 @@ struct None {
 
 
 
-// TEMPLATE-TYPE
+// TEMPLATE TYPE
 // -------------
 // For template classes in template :).
 

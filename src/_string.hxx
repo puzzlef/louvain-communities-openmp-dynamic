@@ -7,7 +7,7 @@ using std::string;
 
 
 
-// COUNT-LINES
+// COUNT LINES
 // -----------
 // For counting temporal edges.
 

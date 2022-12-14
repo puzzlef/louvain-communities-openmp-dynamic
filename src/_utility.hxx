@@ -1,7 +1,6 @@
 #pragma once
 #include <utility>
 #include <chrono>
-#include "_debug.hxx"
 
 using std::pair;
 using std::chrono::microseconds;
@@ -30,39 +29,41 @@ struct PairSecondValue { inline V operator()(const pair<K, V>& x) noexcept { ret
 
 
 
-// MEASURE-DURATION
+// MEASURE DURATION
 // ----------------
 
+/** Get current time. */
 inline auto timeNow() {
   return high_resolution_clock::now();
 }
+
+/** Get time duration in milliseconds. */
 template <class T>
-inline float durationMilliseconds(const T& start, const T& stop) {
-  ASSERT(stop >= start);
+inline float duration(const T& start, const T& stop) {
   auto a = duration_cast<microseconds>(stop - start);
   return a.count()/1000.0f;
 }
+
+/** Get time duration in milliseconds. */
 template <class T>
-inline float durationMilliseconds(const T& start) {
+inline float duration(const T& start) {
   auto stop = timeNow();
-  return durationMilliseconds(start, stop);
+  return duration(start, stop);
 }
 
 
 template <class F>
 inline float measureDuration(F fn, int N=1) {
-  ASSERT(N>0);
   auto start = high_resolution_clock::now();
   for (int i=0; i<N; i++)
     fn();
   auto stop = high_resolution_clock::now();
-  return durationMilliseconds(start, stop)/N;
+  return duration(start, stop)/N;
 }
 
 
 template <class F>
 inline float measureDurationMarked(F fn, int N=1) {
-  ASSERT(N>0);
   float duration = 0;
   for (int i=0; i<N; i++)
     fn([&](auto fm) { duration += measureDuration(fm); });
@@ -77,7 +78,6 @@ inline float measureDurationMarked(F fn, int N=1) {
 
 template <class F>
 inline bool retry(F fn, int N=2) {
-  ASSERT(N>0);
   for (int i=0; i<N; i++)
     if (fn()) return true;
   return false;

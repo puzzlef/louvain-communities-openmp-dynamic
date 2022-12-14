@@ -5,11 +5,11 @@ using std::uniform_real_distribution;
 
 
 
-// ADD-RANDOM-EDGE
+// ADD RANDOM EDGE
 // ---------------
 
 template <class G, class R, class V, class FE>
-bool addRandomEdge(const G& x, R& rnd, size_t span, V w, FE fe) {
+inline bool addRandomEdge(const G& x, R& rnd, size_t span, V w, FE fe) {
   using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   K u = K(dis(rnd) * span);
@@ -19,14 +19,14 @@ bool addRandomEdge(const G& x, R& rnd, size_t span, V w, FE fe) {
 }
 
 template <class G, class R, class V>
-bool addRandomEdge(G& a, R& rnd, size_t span, V w) {
+inline bool addRandomEdge(G& a, R& rnd, size_t span, V w) {
   auto fe = [&](auto u, auto v, auto w) { a.addEdge(u, v, w); };
   return addRandomEdge(a, rnd, span, w, fe);
 }
 
 
 template <class G, class R, class V, class FE>
-bool addRandomEdgeByDegree(const G& x, R& rnd, size_t span, V w, FE fe) {
+inline bool addRandomEdgeByDegree(const G& x, R& rnd, size_t span, V w, FE fe) {
   using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   double deg = x.size() / x.span();
@@ -46,7 +46,7 @@ bool addRandomEdgeByDegree(const G& x, R& rnd, size_t span, V w, FE fe) {
 }
 
 template <class G, class R, class V>
-bool addRandomEdgeByDegree(G& a, R& rnd, size_t span, V w) {
+inline bool addRandomEdgeByDegree(G& a, R& rnd, size_t span, V w) {
   auto fe = [&](auto u, auto v, auto w) { a.addEdge(u, v, w); };
   return addRandomEdgeByDegree(a, rnd, span, w, fe);
 }
@@ -54,11 +54,11 @@ bool addRandomEdgeByDegree(G& a, R& rnd, size_t span, V w) {
 
 
 
-// REMOVE-RANDOM-EDGE
+// REMOVE RANDOM EDGE
 // ------------------
 
 template <class G, class R, class K, class FE>
-bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
+inline bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
   uniform_real_distribution<> dis(0.0, 1.0);
   if (x.degree(u) == 0) return false;
   K vi = K(dis(rnd) * x.degree(u)), i = 0;
@@ -71,14 +71,14 @@ bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
 }
 
 template <class G, class R, class K>
-bool removeRandomEdgeFrom(G& a, R& rnd, K u) {
+inline bool removeRandomEdgeFrom(G& a, R& rnd, K u) {
   auto fe = [&](auto u, auto v) { a.removeEdge(u, v); };
   return removeRandomEdgeFrom(a, rnd, u, fe);
 }
 
 
 template <class G, class R, class FE>
-bool removeRandomEdge(const G& x, R& rnd, FE fe) {
+inline bool removeRandomEdge(const G& x, R& rnd, FE fe) {
   using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   K u = K(dis(rnd) * x.span());
@@ -86,14 +86,14 @@ bool removeRandomEdge(const G& x, R& rnd, FE fe) {
 }
 
 template <class G, class R>
-bool removeRandomEdge(G& a, R& rnd) {
+inline bool removeRandomEdge(G& a, R& rnd) {
   auto fe = [&](auto u, auto v) { a.removeEdge(u, v); };
   return removeRandomEdge(a, rnd, fe);
 }
 
 
 template <class G, class R, class FE>
-bool removeRandomEdgeByDegree(const G& x, R& rnd, FE fe) {
+inline bool removeRandomEdgeByDegree(const G& x, R& rnd, FE fe) {
   using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   size_t v = size_t(dis(rnd) * x.size()), n = 0;
@@ -107,7 +107,7 @@ bool removeRandomEdgeByDegree(const G& x, R& rnd, FE fe) {
 }
 
 template <class G, class R>
-bool removeRandomEdgeByDegree(G& a, R& rnd) {
+inline bool removeRandomEdgeByDegree(G& a, R& rnd) {
   auto fe = [&](auto u, auto v) { a.removeEdge(u, v); };
   return removeRandomEdgeByDegree(a, rnd, fe);
 }

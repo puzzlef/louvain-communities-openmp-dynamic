@@ -1,9 +1,10 @@
 #pragma once
 #include <cassert>
-#include "_iostream.hxx"
-#if !defined(NDEBUG) && defined(BUILD) && BUILD>=1
+#include <ctime>
 #include <cstdio>
 #include <cstdlib>
+#include "_iostream.hxx"
+#if !defined(NDEBUG) && defined(BUILD) && BUILD>=1
 #include <unistd.h>
 #include <signal.h>
 #include <execinfo.h>
@@ -124,7 +125,25 @@
 
 
 
-// ON-SIGNAL
+// LOG
+// ---
+
+#ifndef LOG
+#define LOG(...) do { print(timeNow()); printf(" " __VA_ARGS__); } while (0)
+#endif
+
+#ifndef LOGE
+#define LOGE(...) PERFORME(LOG(__VA_ARGS__))
+#define LOGW(...) PERFORMW(LOG(__VA_ARGS__))
+#define LOGI(...) PERFORMI(LOG(__VA_ARGS__))
+#define LOGD(...) PERFORMD(LOG(__VA_ARGS__))
+#define LOGT(...) PERFORMT(LOG(__VA_ARGS__))
+#endif
+
+
+
+
+// ON SIGNAL
 // ---------
 
 #define STACK_TRACE_SIZE 32

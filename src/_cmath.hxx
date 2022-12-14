@@ -1,29 +1,17 @@
 #pragma once
-#include <cmath>
 #include <type_traits>
+#include <cmath>
 #include <random>
 
-using std::ceil;
-using std::sqrt;
 using std::is_floating_point;
 using std::uniform_int_distribution;
+using std::ceil;
+using std::sqrt;
 
 
 
 
-// COALESCE
-// --------
-// Similar to JavaScript coalescing || operator.
-
-template <class T>
-inline T coalesce(T x, T d=T()) {
-  return x!=T()? x : d;
-}
-
-
-
-
-// CEIL-DIV
+// CEIL DIV
 // --------
 // For kernel launch calculation.
 
@@ -48,20 +36,18 @@ inline int sgn(T x) {
 
 
 
-// POW-2
-// -----
+// POW2
+// ----
 
 template <class T>
 constexpr bool isPow2(T x) noexcept {
   return !(x & (x-1));
 }
 
-
 template <class T>
 constexpr T prevPow2(T x) noexcept {
   return 1 << T(log2(x));
 }
-
 
 template <class T>
 constexpr T nextPow2(T x) noexcept {
@@ -75,7 +61,7 @@ constexpr T nextPow2(T x) noexcept {
 // -----
 
 template <class T>
-bool isPrime(T x) {
+inline bool isPrime(T x) {
   // 1. 2, 3 are prime
   if (x<=3) return x>1;
   // 2. Multiples of 2, 3 not prime
@@ -86,16 +72,14 @@ bool isPrime(T x) {
   return true;
 }
 
-
 template <class T>
-T nextPrime(T x) {
+inline T nextPrime(T x) {
   while (true)
     if (isPrime(++x)) return x;
 }
 
-
 template <class T, class R>
-T randomPrime(T begin, T end, R& rnd) {
+inline T randomPrime(T begin, T end, R& rnd) {
   uniform_int_distribution<T> dis(begin, end);
   for (int i=128; i>0; --i) {
     T a = dis(rnd);
