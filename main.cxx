@@ -17,7 +17,7 @@ using namespace std;
 #endif
 // You can define number of threads with -DMAX_THREADS=...
 #ifndef MAX_THREADS
-#define MAX_THREADS 32
+#define MAX_THREADS 12
 #endif
 
 
@@ -26,7 +26,7 @@ using namespace std;
 template <class G, class K>
 double getModularity(const G& x, const LouvainResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
-  return modularityBy(x, fc, M, 1.0);
+  return modularityByOmp(x, fc, M, 1);
 }
 
 
@@ -43,7 +43,7 @@ auto addRandomEdges(G& a, R& rnd, size_t span, V w, int batchSize) {
   };
   for (int i=0; i<batchSize; ++i)
     retry([&]() { return addRandomEdge(a, rnd, span, w, fe); }, retries);
-  a.correct();
+  updateOmpU(a);
   return insertions;
 }
 
@@ -61,7 +61,7 @@ auto removeRandomEdges(G& a, R& rnd, int batchSize) {
   };
   for (int i=0; i<batchSize; ++i)
     retry([&]() { return removeRandomEdge(a, rnd, fe); }, retries);
-  a.correct();
+  updateOmpU(a);
   return deletions;
 }
 
@@ -69,25 +69,26 @@ auto removeRandomEdges(G& a, R& rnd, int batchSize) {
 
 
 template <class G>
-void runLouvain(const G& x, int repeat) {
+void runExperiment(const G& x, int repeat) {
   using K = typename G::key_type;
   using V = typename G::edge_value_type;
   vector<K> *init = nullptr;
   random_device dev;
   default_random_engine rnd(dev());
   int retries = 5;
-  double M = edgeWeight(x)/2;
-  double Q = modularity(x, M, 1.0f);
-  printf("[%01.6f modularity] noop\n", Q);
+  double M = edgeWeightOmp(x)/2;
+  double Q = modularityOmp(x, M, 1);
+  LOG("[%01.6f modularity] noop\n", Q);
 
   // Get community memberships on original graph (static).
   auto ak = louvainSeqStatic(x, init);
   // Batch of additions only (dynamic).
+  // Remove sequential algorithms to reduce duration of experiment.
   for (int batchSize=500, i=0; batchSize<=100000; batchSize*=i&1? 5:2, ++i) {
     for (int batchCount=1; batchCount<=5; ++batchCount) {
       auto   y = duplicate(x);
       auto insertions = addRandomEdges(y, rnd, x.span(), V(1), batchSize); vector<tuple<K, K>> deletions;
-      double M = edgeWeight(y)/2;
+      double M = edgeWeightOmp(y)/2;
       // Find static Louvain (sequential).
       auto al = louvainSeqStatic(y, init, {repeat});
       printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
@@ -134,18 +135,20 @@ void runLouvain(const G& x, int repeat) {
 int main(int argc, char **argv) {
   using K = uint32_t;
   using V = TYPE;
-  char *file = argv[1];
-  bool sym   = argc>2? stoi(argv[2]) : false;
-  int repeat = argc>3? stoi(argv[3]) : 5;
+  install_sigsegv();
+  char *file     = argv[1];
+  bool symmetric = argc>2? stoi(argv[2]) : false;
+  bool weighted  = argc>3? stoi(argv[3]) : false;
+  int  repeat    = argc>4? stoi(argv[4]) : 5;
   OutDiGraph<K, None, V> x;  // V w = 1;
-  printf("Loading graph %s ...\n", file);
-  readMtxW(x, file); println(x);
-  if (!sym) { x = symmetricize(x); print(x); printf(" (symmetricize)\n"); }
+  LOG("Loading graph %s ...\n", file);
+  readMtxOmpW(x, file, weighted); LOG(""); println(x);
+  if (!symmetric) { x = symmetricizeOmp(x); LOG(""); print(x); printf(" (symmetricize)\n"); }
   // auto fl = [](auto u) { return true; };
   // selfLoopU(y, w, fl); print(y); printf(" (selfLoopAllVertices)\n");
   omp_set_num_threads(MAX_THREADS);
-  printf("OMP_NUM_THREADS=%d\n", MAX_THREADS);
-  runLouvain(x, repeat);
+  LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
+  runExperiment(x, repeat);
   printf("\n");
   return 0;
 }
