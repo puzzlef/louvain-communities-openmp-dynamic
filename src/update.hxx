@@ -19,18 +19,9 @@ inline void addEdgeU(G& a, K u, K v, E w=E()) {
   a.addEdge(u, v, w);
 }
 
-
-template <class G, class K, class E>
-inline void addEdgeThreadOmpU(int t, int T, G& a, K u, K v, E w=E()) {
-  const K CHUNK_SIZE = 1024;
-  K chunk = u / CHUNK_SIZE;
-  if (chunk % T == t) a.addEdge(u, v, w);
-}
 template <class G, class K, class E>
 inline void addEdgeOmpU(G& a, K u, K v, E w=E()) {
-  int T = omp_get_num_threads();
-  int t = omp_get_thread_num();
-  addEdgeThreadOmpU(t, T, a, u, v, w);
+  if (belongsOmp(u)) a.addEdge(u, v, w);
 }
 
 
@@ -44,7 +35,6 @@ template <class G>
 inline void updateU(G& a) {
   a.update();
 }
-
 
 template <class G>
 inline void updateOmpU(G& a) {

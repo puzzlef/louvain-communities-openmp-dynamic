@@ -137,8 +137,8 @@ inline void readMtxOmpW(G& a, istream& s, bool weighted=false) {
       int t = omp_get_thread_num();
       for (int i=0; i<READ; ++i) {
         const auto& [u, v, w] = edges[i];
-        addEdgeThreadOmpU(t, T, a, K(u), K(v), E(w));
-        if (symmetric) addEdgeThreadOmpU(t, T, a, K(v), K(u), E(w));
+        if (belongsOmp(u, t, T)) a.addEdge(K(u), K(v), E(w));
+        if (symmetric && belongsOmp(v, t, T)) a.addEdge(K(v), K(u), E(w));
       }
     }
     PERFORMI( auto t5 = timeNow() );

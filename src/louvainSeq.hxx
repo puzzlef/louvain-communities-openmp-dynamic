@@ -19,7 +19,7 @@ using std::min;
 // -----------
 
 template <class G, class K, class FA, class FP>
-auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FA fa, FP fp) {
+inline auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FA fa, FP fp) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   double R = o.resolution;
   double D = o.passTolerance;

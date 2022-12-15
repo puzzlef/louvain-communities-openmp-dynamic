@@ -77,6 +77,17 @@ inline void louvainVertexWeights(vector<W>& vtot, const G& x) {
   });
 }
 
+template <class G, class W>
+inline void louvainVertexWeightsOmp(vector<W>& vtot, const G& x) {
+  using  K = typename G::key_type;
+  size_t S = x.span();
+  #pragma omp parallel for schedule(auto)
+  for (K u=0; u<S; ++u) {
+    if (!x.hasVertex(u)) continue;
+    x.forEachEdge(u, [&](auto v, auto w) { vtot[u] += w; });
+  }
+}
+
 
 /**
  * Find the total edge weight of each community.
@@ -91,6 +102,18 @@ inline void louvainCommunityWeights(vector<W>& ctot, const G& x, const vector<K>
     K c = vcom[u];
     ctot[c] += vtot[u];
   });
+}
+
+template <class G, class K, class W>
+inline void louvainCommunityWeightsOmp(vector<W>& ctot, const G& x, const vector<K>& vcom, const vector<W>& vtot) {
+  size_t S = x.span();
+  #pragma omp parallel for schedule(auto)
+  for (K u=0; u<S; ++u) {
+    if (!x.hasVertex(u)) continue;
+    K c = vcom[u];
+    #pragma omp atomic
+    ctot[c] += vtot[u];
+  }
 }
 
 
@@ -109,6 +132,17 @@ inline void louvainInitialize(vector<K>& vcom, vector<W>& ctot, const G& x, cons
   });
 }
 
+template <class G, class K, class W>
+inline void louvainInitializeOmp(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot) {
+  size_t S = x.span();
+  #pragma omp parallel for schedule(auto)
+  for (K u=0; u<S; ++u) {
+    if (!x.hasVertex(u)) continue;
+    vcom[u] = u;
+    ctot[u] = vtot[u];
+  }
+}
+
 
 /**
  * Initialize communities from given initial communities.
@@ -122,6 +156,12 @@ template <class G, class K, class W>
 inline void louvainInitializeFrom(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot, const vector<K>& q) {
   copyValues(q, vcom, 0, min(q.size(), vcom.size()));
   louvainCommunityWeights(ctot, x, vcom, vtot);
+}
+
+template <class G, class K, class W>
+inline void louvainInitializeFromOmp(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot, const vector<K>& q) {
+  copyValuesOmp(q, vcom, 0, min(q.size(), vcom.size()));
+  louvainCommunityWeightsOmp(ctot, c, vcom, vtot);
 }
 
 
@@ -211,9 +251,19 @@ inline auto louvainChooseCommunity(const G& x, K u, const vector<K>& vcom, const
  * @param vtot total edge weight of each vertex
  */
 template <class G, class K, class W>
-void louvainChangeCommunity(vector<K>& vcom, vector<W>& ctot, const G& x, K u, K c, const vector<W>& vtot) {
+inline void louvainChangeCommunity(vector<K>& vcom, vector<W>& ctot, const G& x, K u, K c, const vector<W>& vtot) {
   K d = vcom[u];
   ctot[d] -= vtot[u];
+  ctot[c] += vtot[u];
+  vcom[u] = c;
+}
+
+template <class G, class K, class W>
+inline void louvainChangeCommunityOmp(vector<K>& vcom, vector<W>& ctot, const G& x, K u, K c, const vector<W>& vtot) {
+  K d = vcom[u];
+  #pragma omp atomic
+  ctot[d] -= vtot[u];
+  #pragma omp atomic
   ctot[c] += vtot[u];
   vcom[u] = c;
 }
@@ -241,8 +291,7 @@ void louvainChangeCommunity(vector<K>& vcom, vector<W>& ctot, const G& x, K u, K
  * @returns iterations performed
  */
 template <class G, class K, class W, class FA, class FP>
-int louvainMove(vector<K>& vcom, vector<W>& ctot, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L, FA fa, FP fp) {
-  size_t S = x.span();
+inline int louvainMove(vector<K>& vcom, vector<W>& ctot, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, double E, int L, FA fa, FP fp) {
   int l = 0;
   for (; l<L;) {
     W el = W();
@@ -276,11 +325,23 @@ inline int louvainMove(vector<K>& vcom, vector<W>& ctot, vector<K>& vcs, vector<
 // -----------------
 
 template <class G, class K>
-auto louvainCommunityVertices(const G& x, const vector<K>& vcom) {
+inline auto louvainCommunityVertices(const G& x, const vector<K>& vcom) {
   size_t S = x.span();
   vector2d<K> a(S);
   x.forEachVertexKey([&](auto u) { a[vcom[u]].push_back(u); });
   return a;
+}
+
+template <class G, class K>
+inline auto louvainCommunityVerticesOmp(const G& x, const vector<K>& vcom) {
+  size_t S = x.span();
+  vector2d<K> a(S);
+  #pragma omp parallel
+  {
+    x.forEachVertexKey([&](auto u) {
+      if (belongsOmp(vcom[u])) a[vcom[u]].push_back(u);
+    });
+  }
 }
 
 
@@ -293,8 +354,7 @@ auto louvainCommunityVertices(const G& x, const vector<K>& vcom) {
  * @param vcom community each vertex belongs to
  */
 template <class G, class K, class W>
-void louvainAggregate(G& a, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom) {
-  size_t S = x.span();
+inline void louvainAggregate(G& a, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom) {
   auto comv = louvainCommunityVertices(x, vcom);
   for (K c=0; c<comv.size(); ++c) {
     if (comv[c].empty()) continue;
@@ -325,9 +385,17 @@ inline auto louvainAggregate(vector<K>& vcs, vector<W>& vcout, const G& x, const
  * @param vcom community each vertex belongs to (at this aggregation level)
  */
 template <class K>
-void louvainLookupCommunities(vector<K>& a, const vector<K>& vcom) {
+inline void louvainLookupCommunities(vector<K>& a, const vector<K>& vcom) {
   for (auto& v : a)
     v = vcom[v];
+}
+
+template <class K>
+inline void louvainLookupCommunitiesOmp(vector<K>& a, const vector<K>& vcom) {
+  size_t S = a.size();
+  #pragma omp parallel for schedule(auto)
+  for (size_t u=0; u<S; ++u)
+    a[u] = vcom[a[u]];
 }
 
 
@@ -355,7 +423,7 @@ void louvainLookupCommunities(vector<K>& a, const vector<K>& vcom) {
  * @returns flags for each vertex marking whether it is affected
  */
 template <class G, class K, class V, class W>
-auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
+inline auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
   size_t S = x.span();
   vector<K> vcs; vector<W> vcout(S);
   vector<bool> vertices(S), neighbors(S), communities(S);
@@ -408,7 +476,7 @@ auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>
  * @returns flags for each vertex marking whether it is affected
  */
 template <class G, class K, class V>
-auto louvainAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+inline auto louvainAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
   size_t S = x.span();
   vector<bool> vertices(S);
   for (const auto& [u, v] : deletions) {

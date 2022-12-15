@@ -15,6 +15,18 @@ inline void symmetricizeU(G& a, const G& x) {
   a.update();
 }
 
+template <class G>
+inline void symmetricizeOmpU(G& a, const G& x) {
+  #pragma omp parallel
+  {
+    x.forEachVertexKey([&](auto u) {
+      x.forEachEdge(u, [&](auto v, auto w) { addEdgeOmpU(a, v, u, w); });
+    });
+  }
+  updateOmpU(a);
+}
+
+
 template <class H, class G>
 inline void symmetricizeW(H& a, const G& x) {
   a.reserve(x.span());
@@ -26,23 +38,6 @@ inline void symmetricizeW(H& a, const G& x) {
     });
   });
   a.update();
-}
-template <class G>
-inline auto symmetricize(const G& x) {
-  G a = x; symmetricizeU(a, x);
-  return a;
-}
-
-
-template <class G>
-inline void symmetricizeOmpU(G& a, const G& x) {
-  #pragma omp parallel
-  {
-    x.forEachVertexKey([&](auto u) {
-      x.forEachEdge(u, [&](auto v, auto w) { addEdgeOmpU(a, v, u, w); });
-    });
-  }
-  updateOmpU(a);
 }
 
 template <class H, class G>
@@ -60,6 +55,14 @@ inline void symmetricizeOmpW(H& a, const G& x) {
   }
   updateOmpU(a);
 }
+
+
+template <class G>
+inline auto symmetricize(const G& x) {
+  G a = x; symmetricizeU(a, x);
+  return a;
+}
+
 template <class G>
 inline auto symmetricizeOmp(const G& x) {
   G a = x; symmetricizeOmpU(a, x);
