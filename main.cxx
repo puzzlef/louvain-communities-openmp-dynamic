@@ -17,7 +17,7 @@ using namespace std;
 #endif
 // You can define number of threads with -DMAX_THREADS=...
 #ifndef MAX_THREADS
-#define MAX_THREADS 12
+#define MAX_THREADS 32
 #endif
 
 
@@ -81,7 +81,7 @@ void runExperiment(const G& x, int repeat) {
   LOG("[%01.6f modularity] noop\n", Q);
 
   // Get community memberships on original graph (static).
-  auto ak = louvainSeqStatic(x, init);
+  auto ak = louvainOmpStatic(x, init);
   // Batch of additions only (dynamic).
   // Remove sequential algorithms to reduce duration of experiment.
   for (int batchSize=500, i=0; batchSize<=100000; batchSize*=i&1? 5:2, ++i) {
