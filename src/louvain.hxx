@@ -161,7 +161,7 @@ inline void louvainInitializeFrom(vector<K>& vcom, vector<W>& ctot, const G& x, 
 template <class G, class K, class W>
 inline void louvainInitializeFromOmp(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot, const vector<K>& q) {
   copyValuesOmp(q, vcom, 0, min(q.size(), vcom.size()));
-  louvainCommunityWeightsOmp(ctot, c, vcom, vtot);
+  louvainCommunityWeightsOmp(ctot, x, vcom, vtot);
 }
 
 
@@ -342,6 +342,7 @@ inline auto louvainCommunityVerticesOmp(const G& x, const vector<K>& vcom) {
       if (belongsOmp(vcom[u])) a[vcom[u]].push_back(u);
     });
   }
+  return a;
 }
 
 
@@ -365,7 +366,7 @@ inline void louvainAggregate(G& a, vector<K>& vcs, vector<W>& vcout, const G& x,
     for (auto d : vcs)
       a.addEdge(c, d, vcout[d]);
   }
-  a.correct();
+  a.update();
 }
 template <class G, class K, class W>
 inline auto louvainAggregate(vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom) {

@@ -91,19 +91,19 @@ void runExperiment(const G& x, int repeat) {
       double M = edgeWeightOmp(y)/2;
       // Find static Louvain (sequential).
       auto al = louvainSeqStatic(y, init, {repeat});
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
+      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
       // Find static Louvain.
       auto am = louvainOmpStatic(y, init, {repeat});
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(batchSize), am.time, am.iterations, am.passes, getModularity(y, am, M));
+      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(batchSize), am.time, am.iterations, am.passes, getModularity(y, am, M));
       // Find naive-dynamic Louvain.
       auto an = louvainOmpStatic(y, &ak.membership, {repeat});
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(batchSize), an.time, an.iterations, an.passes, getModularity(y, an, M));
+      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(batchSize), an.time, an.iterations, an.passes, getModularity(y, an, M));
       // Find delta-screening based dynamic Louvain.
       auto ao = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &ak.membership, {repeat});
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(batchSize), ao.time, ao.iterations, ao.passes, getModularity(y, ao, M));
+      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(batchSize), ao.time, ao.iterations, ao.passes, getModularity(y, ao, M));
       // Find frontier based dynamic Louvain.
       auto ap = louvainOmpDynamicFrontier(y, deletions, insertions, &ak.membership, {repeat});
-      printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(batchSize), ap.time, ap.iterations, ap.passes, getModularity(y, ap, M));
+      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(batchSize), ap.time, ap.iterations, ap.passes, getModularity(y, ap, M));
     }
   }
   // Batch of deletions only (dynamic).
@@ -114,19 +114,19 @@ void runExperiment(const G& x, int repeat) {
   //     double M = edgeWeight(y)/2;
   //     // Find static Louvain (sequential).
   //     auto al = louvainSeqStatic(y, init, {repeat});
-  //     printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(-batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
+  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(-batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
   //     // Find static Louvain.
   //     auto am = louvainOmpStatic(y, init, {repeat});
-  //     printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(-batchSize), am.time, am.iterations, am.passes, getModularity(y, am, M));
+  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(-batchSize), am.time, am.iterations, am.passes, getModularity(y, am, M));
   //     // Find naive-dynamic Louvain.
   //     auto an = louvainOmpStatic(y, &ak.membership, {repeat});
-  //     printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(-batchSize), an.time, an.iterations, an.passes, getModularity(y, an, M));
+  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(-batchSize), an.time, an.iterations, an.passes, getModularity(y, an, M));
   //     // Find delta-screening based dynamic Louvain.
   //     auto ao = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &ak.membership, {repeat});
-  //     printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(-batchSize), ao.time, ao.iterations, ao.passes, getModularity(y, ao, M));
+  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(-batchSize), ao.time, ao.iterations, ao.passes, getModularity(y, ao, M));
   //     // Find frontier based dynamic Louvain.
   //     auto ap = louvainOmpDynamicFrontier(y, deletions, insertions, &ak.membership, {repeat});
-  //     printf("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(-batchSize), ap.time, ap.iterations, ap.passes, getModularity(y, ap, M));
+  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(-batchSize), ap.time, ap.iterations, ap.passes, getModularity(y, ap, M));
   //   }
   // }
 }
