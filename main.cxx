@@ -1,9 +1,11 @@
+#include <cstdint>
+#include <cstdio>
 #include <utility>
 #include <random>
 #include <vector>
 #include <string>
-#include <cstdio>
 #include <iostream>
+#include <algorithm>
 #include "src/main.hxx"
 
 using namespace std;
@@ -11,28 +13,42 @@ using namespace std;
 
 
 
-// You can define datatype with -DTYPE=...
+// Fixed config
 #ifndef TYPE
 #define TYPE float
 #endif
-// You can define number of threads with -DMAX_THREADS=...
 #ifndef MAX_THREADS
-#define MAX_THREADS 32
+#define MAX_THREADS 64
+#endif
+#ifndef REPEAT_BATCH
+#define REPEAT_BATCH 5
+#endif
+#ifndef REPEAT_METHOD
+#define REPEAT_METHOD 1
 #endif
 
 
 
 
+// HELPERS
+// -------
+
 template <class G, class K>
-double getModularity(const G& x, const LouvainResult<K>& a, double M) {
+inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
-  return modularityByOmp(x, fc, M, 1);
+  return modularityByOmp(x, fc, M, 1.0);
 }
 
 
-template <class G, class R, class V>
-auto addRandomEdges(G& a, R& rnd, size_t span, V w, int batchSize) {
+
+
+// GENERATE BATCH
+// --------------
+
+template <class G, class R>
+inline auto addRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
   using K = typename G::key_type;
+  using V = typename G::edge_value_type;
   int retries = 5;
   vector<tuple<K, K, V>> insertions;
   auto fe = [&](auto u, auto v, auto w) {
@@ -41,15 +57,15 @@ auto addRandomEdges(G& a, R& rnd, size_t span, V w, int batchSize) {
     insertions.push_back(make_tuple(u, v, w));
     insertions.push_back(make_tuple(v, u, w));
   };
-  for (int i=0; i<batchSize; ++i)
-    retry([&]() { return addRandomEdge(a, rnd, span, w, fe); }, retries);
+  for (size_t l=0; l<batchSize; ++l)
+    retry([&]() { return addRandomEdge(a, rnd, i, n, V(1), fe); }, retries);
   updateOmpU(a);
   return insertions;
 }
 
 
 template <class G, class R>
-auto removeRandomEdges(G& a, R& rnd, int batchSize) {
+auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
   using K = typename G::key_type;
   int retries = 5;
   vector<tuple<K, K>> deletions;
@@ -59,8 +75,8 @@ auto removeRandomEdges(G& a, R& rnd, int batchSize) {
     deletions.push_back(make_tuple(u, v));
     deletions.push_back(make_tuple(v, u));
   };
-  for (int i=0; i<batchSize; ++i)
-    retry([&]() { return removeRandomEdge(a, rnd, fe); }, retries);
+  for (size_t l=0; l<batchSize; ++l)
+    retry([&]() { return removeRandomEdge(a, rnd, i, n, fe); }, retries);
   updateOmpU(a);
   return deletions;
 }
@@ -68,67 +84,130 @@ auto removeRandomEdges(G& a, R& rnd, int batchSize) {
 
 
 
+// PERFORM EXPERIMENT
+// ------------------
+
+template <class G, class R, class F>
+inline void runAbsoluteBatches(const G& x, R& rnd, F fn) {
+  size_t d = BATCH_DELETIONS_BEGIN;
+  size_t i = BATCH_INSERTIONS_BEGIN;
+  for (int epoch=0;; ++epoch) {
+    for (int r=0; r<REPEAT_BATCH; ++r) {
+      auto y  = duplicate(x);
+      auto deletions  = removeRandomEdges(y, rnd, d, 1, x.span()-1);
+      auto insertions = addRandomEdges   (y, rnd, i, 1, x.span()-1);
+      fn(y, deletions, insertions, epoch);
+    }
+    if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
+    d BATCH_DELETIONS_STEP;
+    i BATCH_INSERTIONS_STEP;
+    d = min(d, size_t(BATCH_DELETIONS_END));
+    i = min(i, size_t(BATCH_INSERTIONS_END));
+  }
+}
+
+
+template <class G, class R, class F>
+inline void runRelativeBatches(const G& x, R& rnd, F fn) {
+  double d = BATCH_DELETIONS_BEGIN;
+  double i = BATCH_INSERTIONS_BEGIN;
+  for (int epoch=0;; ++epoch) {
+    for (int r=0; r<REPEAT_BATCH; ++r) {
+      auto y  = duplicate(x);
+      auto deletions  = removeRandomEdges(y, rnd, size_t(d * x.size()/2), 1, x.span()-1);
+      auto insertions = addRandomEdges   (y, rnd, size_t(i * x.size()/2), 1, x.span()-1);
+      fn(y, deletions, insertions, epoch);
+    }
+    if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
+    d BATCH_DELETIONS_STEP;
+    i BATCH_INSERTIONS_STEP;
+    d = min(d, double(BATCH_DELETIONS_END));
+    i = min(i, double(BATCH_INSERTIONS_END));
+  }
+}
+
+
+template <class G, class R, class F>
+inline void runBatches(const G& x, R& rnd, F fn) {
+  if (BATCH_UNIT=="%") runRelativeBatches(x, rnd, fn);
+  else runAbsoluteBatches(x, rnd, fn);
+}
+
+
+template <class F>
+inline void runThreadsWithBatch(int epoch, F fn) {
+  int t = NUM_THREADS_BEGIN;
+  for (int l=0; l<epoch && t<=NUM_THREADS_END; ++l)
+    t NUM_THREADS_STEP;
+  omp_set_num_threads(t);
+  fn(t);
+  omp_set_num_threads(MAX_THREADS);
+}
+
+
+template <class F>
+inline void runThreadsAll(F fn) {
+  for (int t=NUM_THREADS_BEGIN; t<=NUM_THREADS_END; t NUM_THREADS_STEP) {
+    omp_set_num_threads(t);
+    fn(t);
+    omp_set_num_threads(MAX_THREADS);
+  }
+}
+
+
+template <class F>
+inline void runThreads(int epoch, F fn) {
+  if (NUM_THREADS_MODE=="with-batch") runThreadsWithBatch(epoch, fn);
+  else runThreadsAll(fn);
+}
+
+
 template <class G>
-void runExperiment(const G& x, int repeat) {
+void runExperiment(const G& x) {
   using K = typename G::key_type;
   using V = typename G::edge_value_type;
-  vector<K> *init = nullptr;
   random_device dev;
   default_random_engine rnd(dev());
+  int repeat  = REPEAT_METHOD;
   int retries = 5;
-  double M = edgeWeightOmp(x)/2;
-  double Q = modularityOmp(x, M, 1);
-  LOG("[%01.6f modularity] noop\n", Q);
-
+  vector<K> *init = nullptr;
   // Get community memberships on original graph (static).
-  auto ak = louvainOmpStatic(x, init);
-  // Batch of additions only (dynamic).
-  // Remove sequential algorithms to reduce duration of experiment.
-  for (int batchSize=500, i=0; batchSize<=100000; batchSize*=i&1? 5:2, ++i) {
-    for (int batchCount=1; batchCount<=5; ++batchCount) {
-      auto   y = duplicate(x);
-      auto insertions = addRandomEdges(y, rnd, x.span(), V(1), batchSize); vector<tuple<K, K>> deletions;
-      double M = edgeWeightOmp(y)/2;
-      // Find static Louvain (sequential).
-      auto al = louvainSeqStatic(y, init, {repeat});
-      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
+  auto a0 = louvainSeqStatic(x, init);
+  auto b0 = louvainOmpStatic(x, init);
+  // Get community memberships on updated graph (dynamic).
+  runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int epoch) {
+    double M = edgeWeightOmp(y)/2;
+    // Follow a specific result logging format, which can be easily parsed later.
+    auto glog = [&](const auto& ans, const char *technique, int numThreads) {
+      LOG(
+        "{-%.3e/+%.3e batch, %03d threads} -> "
+        "{%09.1fms, %04d iters, %03d passes, %01.9f modularity} %s\n",
+        double(deletions.size()), double(insertions.size()), numThreads,
+        ans.time, ans.iterations, ans.passes, getModularity(y, ans, M), technique
+      );
+    };
+    // Find static sequential Louvain.
+    auto a1 = louvainSeqStatic(y, init, {repeat});
+    glog(a1, "louvainSeqStatic", 1);
+    // Adjust number of threads.
+    runThreads(epoch, [&](int numThreads) {
+      auto flog = [&](const auto& ans, const char *technique) {
+        glog(ans, technique, numThreads);
+      };
       // Find static Louvain.
-      auto am = louvainOmpStatic(y, init, {repeat});
-      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(batchSize), am.time, am.iterations, am.passes, getModularity(y, am, M));
+      auto b1 = louvainOmpStatic(y, init, {repeat});
+      flog(b1, "louvainOmpStatic");
       // Find naive-dynamic Louvain.
-      auto an = louvainOmpStatic(y, &ak.membership, {repeat});
-      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(batchSize), an.time, an.iterations, an.passes, getModularity(y, an, M));
+      auto b2 = louvainOmpStatic(y, &b0.membership, {repeat});
+      flog(b2, "louvainOmpNaiveDynamic");
       // Find delta-screening based dynamic Louvain.
-      auto ao = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &ak.membership, {repeat});
-      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(batchSize), ao.time, ao.iterations, ao.passes, getModularity(y, ao, M));
+      auto b3 = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &b0.membership, {repeat});
+      flog(b3, "louvainOmpDynamicDeltaScreening");
       // Find frontier based dynamic Louvain.
-      auto ap = louvainOmpDynamicFrontier(y, deletions, insertions, &ak.membership, {repeat});
-      LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(batchSize), ap.time, ap.iterations, ap.passes, getModularity(y, ap, M));
-    }
-  }
-  // Batch of deletions only (dynamic).
-  // for (int batchSize=500, i=0; batchSize<=100000; batchSize*=i&1? 5:2, ++i) {
-  //   for (int batchCount=1; batchCount<=5; ++batchCount) {
-  //     auto   y = duplicate(x);
-  //     auto deletions = removeRandomEdges(y, rnd, batchSize); vector<tuple<K, K, V>> insertions;
-  //     double M = edgeWeight(y)/2;
-  //     // Find static Louvain (sequential).
-  //     auto al = louvainSeqStatic(y, init, {repeat});
-  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainSeqStatic\n",                double(-batchSize), al.time, al.iterations, al.passes, getModularity(y, al, M));
-  //     // Find static Louvain.
-  //     auto am = louvainOmpStatic(y, init, {repeat});
-  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpStatic\n",                double(-batchSize), am.time, am.iterations, am.passes, getModularity(y, am, M));
-  //     // Find naive-dynamic Louvain.
-  //     auto an = louvainOmpStatic(y, &ak.membership, {repeat});
-  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpNaiveDynamic\n",          double(-batchSize), an.time, an.iterations, an.passes, getModularity(y, an, M));
-  //     // Find delta-screening based dynamic Louvain.
-  //     auto ao = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &ak.membership, {repeat});
-  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicDeltaScreening\n", double(-batchSize), ao.time, ao.iterations, ao.passes, getModularity(y, ao, M));
-  //     // Find frontier based dynamic Louvain.
-  //     auto ap = louvainOmpDynamicFrontier(y, deletions, insertions, &ak.membership, {repeat});
-  //     LOG("[%1.0e batch_size; %09.3f ms; %04d iters.; %03d passes; %01.9f modularity] louvainOmpDynamicFrontier\n",       double(-batchSize), ap.time, ap.iterations, ap.passes, getModularity(y, ap, M));
-  //   }
-  // }
+      auto b4 = louvainOmpDynamicFrontier(y, deletions, insertions, &b0.membership, {repeat});
+      flog(b4, "louvainOmpDynamicFrontier");
+    });
+  });
 }
 
 
@@ -139,16 +218,13 @@ int main(int argc, char **argv) {
   char *file     = argv[1];
   bool symmetric = argc>2? stoi(argv[2]) : false;
   bool weighted  = argc>3? stoi(argv[3]) : false;
-  int  repeat    = argc>4? stoi(argv[4]) : 5;
-  OutDiGraph<K, None, V> x;  // V w = 1;
-  LOG("Loading graph %s ...\n", file);
-  readMtxOmpW(x, file, weighted); LOG(""); println(x);
-  if (!symmetric) { x = symmetricizeOmp(x); LOG(""); print(x); printf(" (symmetricize)\n"); }
-  // auto fl = [](auto u) { return true; };
-  // selfLoopU(y, w, fl); print(y); printf(" (selfLoopAllVertices)\n");
   omp_set_num_threads(MAX_THREADS);
   LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
-  runExperiment(x, repeat);
+  LOG("Loading graph %s ...\n", file);
+  OutDiGraph<K, None, V> x;
+  readMtxOmpW(x, file, weighted); LOG(""); println(x);
+  if (!symmetric) { x = symmetricizeOmp(x); LOG(""); print(x); printf(" (symmetricize)\n"); }
+  runExperiment(x);
   printf("\n");
   return 0;
 }
