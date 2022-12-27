@@ -738,13 +738,13 @@ inline auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o) 
 // --------------
 
 template <class G, class K>
-inline auto louvainSeqStatic(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
+inline auto louvainStaticSeq(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
   return louvainSeq(x, q, o);
 }
 
 #ifdef OPENMP
 template <class G, class K>
-inline auto louvainOmpStatic(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
+inline auto louvainStaticOmp(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
   return louvainOmp(x, q, o);
 }
 #endif
@@ -756,7 +756,7 @@ inline auto louvainOmpStatic(const G& x, const vector<K>* q=nullptr, const Louva
 // -------------------------------
 
 template <class G, class K, class V>
-inline auto louvainSeqDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreeningSeq(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   size_t S = x.span();
   double R = o.resolution;
@@ -772,7 +772,7 @@ inline auto louvainSeqDynamicDeltaScreening(const G& x, const vector<tuple<K, K>
 
 #ifdef OPENMP
 template <class G, class K, class V>
-inline auto louvainOmpDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   size_t S = x.span();
   double R = o.resolution;
@@ -794,7 +794,7 @@ inline auto louvainOmpDynamicDeltaScreening(const G& x, const vector<tuple<K, K>
 // ------------------------
 
 template <class G, class K, class V>
-inline auto louvainSeqDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontierSeq(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   size_t S = x.span();
   const vector<K>& vcom = *q;
   auto vaff = louvainAffectedVerticesFrontier(x, deletions, insertions, vcom);
@@ -805,7 +805,7 @@ inline auto louvainSeqDynamicFrontier(const G& x, const vector<tuple<K, K>>& del
 
 #ifdef OPENMP
 template <class G, class K, class V>
-inline auto louvainOmpDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontierOmp(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
   auto vaff = louvainAffectedVerticesFrontier(x, deletions, insertions, vcom);
   auto fa = [&](auto u) { return vaff[u]==true; };

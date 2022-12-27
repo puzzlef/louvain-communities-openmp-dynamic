@@ -172,8 +172,8 @@ void runExperiment(const G& x) {
   int retries = 5;
   vector<K> *init = nullptr;
   // Get community memberships on original graph (static).
-  auto a0 = louvainSeqStatic(x, init);
-  auto b0 = louvainOmpStatic(x, init);
+  auto a0 = louvainStaticSeq(x, init);
+  auto b0 = louvainStaticOmp(x, init);
   // Get community memberships on updated graph (dynamic).
   runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int epoch) {
     double M = edgeWeightOmp(y)/2;
@@ -187,25 +187,25 @@ void runExperiment(const G& x) {
       );
     };
     // Find static sequential Louvain.
-    auto a1 = louvainSeqStatic(y, init, {repeat});
-    glog(a1, "louvainSeqStatic", 1);
+    auto a1 = louvainStaticSeq(y, init, {repeat});
+    glog(a1, "louvainStaticSeq", 1);
     // Adjust number of threads.
     runThreads(epoch, [&](int numThreads) {
       auto flog = [&](const auto& ans, const char *technique) {
         glog(ans, technique, numThreads);
       };
       // Find static Louvain.
-      auto b1 = louvainOmpStatic(y, init, {repeat});
-      flog(b1, "louvainOmpStatic");
+      auto b1 = louvainStaticOmp(y, init, {repeat});
+      flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainOmpStatic(y, &b0.membership, {repeat});
-      flog(b2, "louvainOmpNaiveDynamic");
+      auto b2 = louvainStaticOmp(y, &b0.membership, {repeat});
+      flog(b2, "louvainNaiveDynamicOmp");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainOmpDynamicDeltaScreening(y, deletions, insertions, &b0.membership, {repeat});
-      flog(b3, "louvainOmpDynamicDeltaScreening");
+      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &b0.membership, {repeat});
+      flog(b3, "louvainDynamicDeltaScreeningOmp");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainOmpDynamicFrontier(y, deletions, insertions, &b0.membership, {repeat});
-      flog(b4, "louvainOmpDynamicFrontier");
+      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &b0.membership, {repeat});
+      flog(b4, "louvainDynamicFrontierOmp");
     });
   });
 }
