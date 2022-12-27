@@ -82,10 +82,10 @@ inline ostream& operator<<(ostream& a, const vector<T>& x) {
 // ----------
 
 inline void writeTime(ostream& a, const time_t& x) {
-  const int BUF = 32;
+  const int BUF = 64;
   char  buf[BUF];
   tm* t = localtime(&x);
-  snprintf(buf, BUF, "%04d-%02d-%02d %02d:%02d:%02d",
+  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d",
     t->tm_year + 1900,
     t->tm_mon  + 1,
     t->tm_mday,

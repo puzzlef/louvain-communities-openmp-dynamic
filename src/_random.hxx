@@ -4,6 +4,9 @@
 
 
 
+// XORSHIFT-32
+// -----------
+
 // A 32-bit xorshift RNG.
 class xorshift32_engine {
   uint32_t state;

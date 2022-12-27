@@ -6,10 +6,13 @@
 #include <istream>
 #include <sstream>
 #include <fstream>
-#include <omp.h>
 #include "_main.hxx"
 #include "Graph.hxx"
 #include "update.hxx"
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 using std::tuple;
 using std::string;
@@ -85,11 +88,7 @@ inline void readMtxW(G& a, const char *pth, bool weighted=false) {
 }
 
 
-
-
-// READ MTX (OPENMP)
-// -----------------
-
+#ifdef OPENMP
 template <class G>
 inline void readMtxOmpW(G& a, istream& s, bool weighted=false) {
   using K = typename G::key_type;
@@ -133,12 +132,10 @@ inline void readMtxOmpW(G& a, istream& s, bool weighted=false) {
     // Add edges to the graph.
     #pragma omp parallel
     {
-      int T = omp_get_num_threads();
-      int t = omp_get_thread_num();
       for (int i=0; i<READ; ++i) {
         const auto& [u, v, w] = edges[i];
-        if (belongsOmp(u, t, T)) a.addEdge(K(u), K(v), E(w));
-        if (symmetric && belongsOmp(v, t, T)) a.addEdge(K(v), K(u), E(w));
+        addEdgeOmpU(a, K(u), K(v), E(w));
+        if (symmetric) addEdgeOmpU(a, K(v), K(u), E(w));
       }
     }
     PERFORMI( auto t5 = timeNow() );
@@ -158,7 +155,7 @@ inline void readMtxOmpW(G& a, const char *pth, bool weighted=false) {
   ifstream f(pth);
   readMtxOmpW(a, f, weighted);
 }
-
+#endif
 
 
 

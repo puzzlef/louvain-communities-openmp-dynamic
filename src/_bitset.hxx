@@ -3,11 +3,11 @@
 #include <utility>
 #include <algorithm>
 #include <vector>
+#include "_ctypes.hxx"
 #include "_queue.hxx"
 
 using std::pair;
 using std::vector;
-#include "_ctypes.hxx"
 using std::lower_bound;
 
 
@@ -180,7 +180,7 @@ class LazyBitset {
     BITSET_FCOMPARES(K, V)
     size_t N = pairs.size(),  n  = N + unprocessed;
     auto  ib = pairs.begin(), ie = pairs.end(), im = ib + n;
-    sort_values(im, ie);
+    sort_values(im, ie, fl);
     auto  it = set_difference_inplace(ib, im, im, ie, fl, fe);
     pairs.resize(it - ib);
     unprocessed = 0;
@@ -194,7 +194,7 @@ class LazyBitset {
     auto bb = buf? buf->begin() : pairs.begin() + N;
     auto be = buf? buf->end()   : pairs.end();
     auto ib = pairs.begin(), im = ib + n, ie = ib + N;
-    sort_values(im, ie);
+    sort_values(im, ie, fl);
     auto it = set_union_last_inplace(ib, im, im, ie, bb, be, fl, fe);
     pairs.resize(it - ib);
     unprocessed = 0;

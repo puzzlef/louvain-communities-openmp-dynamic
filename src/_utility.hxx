@@ -54,10 +54,10 @@ inline float duration(const T& start) {
 
 template <class F>
 inline float measureDuration(F fn, int N=1) {
-  auto start = high_resolution_clock::now();
+  auto start = timeNow();
   for (int i=0; i<N; i++)
     fn();
-  auto stop = high_resolution_clock::now();
+  auto stop  = timeNow();
   return duration(start, stop)/N;
 }
 

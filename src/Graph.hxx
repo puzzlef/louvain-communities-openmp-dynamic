@@ -220,20 +220,25 @@ using std::cout;
     vvalues[u] = d; \
   }
 
-#define GRAPH_SET_EDGE_VALUE_X(K, V, E, u, v, w, e0, e1) \
-  inline void setEdgeValue(K u, K v, E w) noexcept { \
+#define GRAPH_SET_EDGE_VALUE_X(K, V, E, u, v, w, ft, e0, e1) \
+  template <class FT> \
+  inline void setEdgeValue(K u, K v, E w, FT ft) noexcept { \
     if (!hasVertex(u) || !hasVertex(v)) return; \
     e0; \
     e1; \
+  } \
+  inline void setEdgeValue(K u, K v, E w) noexcept { \
+    auto ft = [](K u) { return true; }; \
+    setEdgeValue(u, v, w, ft); \
   }
 
 #define GRAPH_SET_VALUES(K, V, E, vvalues, eto, efrom) \
   GRAPH_SET_VERTEX_VALUE(K, V, E, vvalues) \
-  GRAPH_SET_EDGE_VALUE_X(K, V, E, u, v, w, eto[u].set(v, w), efrom[v].set(u, w))
+  GRAPH_SET_EDGE_VALUE_X(K, V, E, u, v, w, ft, if (ft(u)) eto[u].set(v, w), if (ft(v)) efrom[v].set(u, w))
 
 #define GRAPH_SET_VALUES_SCAN(K, V, E, vvalues, eto) \
   GRAPH_SET_VERTEX_VALUE(K, V, E, vvalues) \
-  GRAPH_SET_EDGE_VALUE_X(K, V, E, u, v, w, eto[u].set(v, w), false)
+  GRAPH_SET_EDGE_VALUE_X(K, V, E, u, v, w, ft, if (ft(u)) eto[u].set(v, w), false)
 #endif
 
 
@@ -336,75 +341,110 @@ using std::cout;
 
 
 #ifndef GRAPH_ADD_EDGE
-#define GRAPH_ADD_EDGE_X(K, V, E, u, v, w, e0, e1) \
-  inline void addEdge(K u, K v, E w=E()) { \
+#define GRAPH_ADD_EDGE_X(K, V, E, u, v, w, ft, e0, e1) \
+  template <class FT> \
+  inline void addEdge(K u, K v, E w, FT ft) { \
     addVertex(u); addVertex(v); \
     e0; \
     e1; \
+  } \
+  inline void addEdge(K u, K v, E w=E()) { \
+    auto ft = [](K u) { return true; }; \
+    addEdge(u, v, w, ft); \
   }
 
 #define GRAPH_ADD_EDGE(K, V, E, eto, efrom) \
-  GRAPH_ADD_EDGE_X(K, V, E, u, v, w, eto[u].add(v, w), efrom[v].add(u, w))
+  GRAPH_ADD_EDGE_X(K, V, E, u, v, w, ft, if (ft(u)) eto[u].add(v, w), if (ft(v)) efrom[v].add(u, w))
 #define GRAPH_ADD_EDGE_SCAN(K, V, E, eto) \
-  GRAPH_ADD_EDGE_X(K, V, E, u, v, w, eto[u].add(v, w), false)
+  GRAPH_ADD_EDGE_X(K, V, E, u, v, w, ft, if (ft(u)) eto[u].add(v, w), false)
 #endif
 
 
 #ifndef GRAPH_REMOVE_EDGE
-#define GRAPH_REMOVE_EDGE_X(K, V, E, u, v, e0, e1) \
-  inline void removeEdge(K u, K v) { \
+#define GRAPH_REMOVE_EDGE_X(K, V, E, u, v, ft, e0, e1) \
+  template <class FT> \
+  inline void removeEdge(K u, K v, FT ft) { \
     if (!hasVertex(u) || !hasVertex(v)) return; \
     e0; \
     e1; \
+  } \
+  inline void removeEdge(K u, K v) { \
+    auto ft = [](K u) { return true; }; \
+    removeEdge(u, v, ft); \
   }
 
 #define GRAPH_REMOVE_EDGE(K, V, E, eto, efrom) \
-  GRAPH_REMOVE_EDGE_X(K, V, E, u, v, eto[u].remove(v), efrom[v].remove(u))
+  GRAPH_REMOVE_EDGE_X(K, V, E, u, v, ft, if (ft(u)) eto[u].remove(v), if (ft(v)) efrom[v].remove(u))
 #define GRAPH_REMOVE_EDGE_SCAN(K, V, E, eto) \
-  GRAPH_REMOVE_EDGE_X(K, V, E, u, v, eto[u].remove(v), false)
+  GRAPH_REMOVE_EDGE_X(K, V, E, u, v, ft, if (ft(u)) eto[u].remove(v), false)
 #endif
 
 
 #ifndef GRAPH_REMOVE_EDGES
 #define GRAPH_REMOVE_EDGES(K, V, E, eto, efrom) \
-  inline void removeEdges(K u) { \
+  template <class FT> \
+  inline void removeEdges(K u, FT ft) { \
     if (!hasVertex(u)) return; \
-    eto[u].forEachKey([&](K v) { efrom[v].remove(u); }); \
-    eto[u].clear(); \
+    eto[u].forEachKey([&](K v) { if (ft(v)) efrom[v].remove(u); }); \
+    if (ft(u)) eto[u].clear(); \
+  } \
+  inline void removeEdges(K u) { \
+    auto ft = [](K u) { return true; }; \
+    removeEdges(u, ft); \
   }
 
 #define GRAPH_REMOVE_EDGES_SCAN(K, V, E, eto) \
-  inline void removeEdges(K u) { \
+  template <class FT> \
+  inline void removeEdges(K u, FT ft) { \
     if (!hasVertex(u)) return; \
-    eto[u].clear(); \
+    if (ft(u)) eto[u].clear(); \
+  } \
+  inline void removeEdges(K u) { \
+    auto ft = [](K u) { return true; }; \
+    removeEdges(u, ft); \
   }
 #endif
 
 
 #ifndef GRAPH_REMOVE_INEDGES
 #define GRAPH_REMOVE_INEDGES(K, V, E, eto, efrom) \
-  inline void removeInEdges(K v) { \
+  template <class FT> \
+  inline void removeInEdges(K v, FT ft) { \
     if (!hasVertex(v)) return; \
-    efrom[v].forEachKey([&](K u) { eto[u].remove(v); }); \
-    efrom[v].clear(); \
+    efrom[v].forEachKey([&](K u) { if (ft(u)) eto[u].remove(v); }); \
+    if (ft(v)) efrom[v].clear(); \
+  } \
+  inline void removeInEdges(K v) { \
+    auto ft = [](K u) { return true; }; \
+    removeInEdges(v, ft); \
   }
 
 #define GRAPH_REMOVE_INEDGES_SCAN(K, V, E, eto) \
-  inline void removeInEdges(K v) { \
+  template <class FT> \
+  inline void removeInEdges(K v, FT ft) { \
     if (!hasVertex(v)) return; \
-    forEachVertexKey([&](K u) { eto[u].remove(v); }); \
+    forEachVertexKey([&](K u) { if (ft(u)) eto[u].remove(v); }); \
+  } \
+  inline void removeInEdges(K v) { \
+    auto ft = [](K u) { return true; }; \
+    removeInEdges(v, ft); \
   }
 #endif
 
 
 #ifndef GRAPH_REMOVE_VERTEX
 #define GRAPH_REMOVE_VERTEX(K, V, E, ists, vvalues) \
-  inline void removeVertex(K u) { \
+  template <class FT> \
+  inline void removeVertex(K u, FT ft) { \
     if (!hasVertex(u)) return; \
-    removeEdges(u); \
-    removeInEdges(u); \
+    removeEdges(u, ft); \
+    removeInEdges(u, ft); \
     vexists[u] = false; \
     vvalues[u] = V(); \
+  } \
+  inline void removeVertex(K u) { \
+    auto ft = [](K u) { return true; }; \
+    removeVertex(u, ft); \
   }
 #endif
 
@@ -423,7 +463,6 @@ using std::cout;
 // DI-GRAPH
 // --------
 // Directed graph that memorizes in- and out-edges for each vertex.
-// NOTE: Parallel updates wont work (for now).
 
 template <class K=uint32_t, class V=NONE, class E=NONE, tclass2 Bitset=LazyBitset>
 class DiGraph {
@@ -547,7 +586,6 @@ using LazyOutDiGraph = OutDiGraph<K, V, E, LazyBitset>;
 // GRAPH
 // -----
 // Undirected graph.
-// NOTE: Parallel updates wont work (for now).
 
 template <class K=uint32_t, class V=NONE, class E=NONE, tclass2 Bitset=LazyBitset>
 class Graph : public OutDiGraph<K, V, E, Bitset> {
@@ -568,27 +606,56 @@ class Graph : public OutDiGraph<K, V, E, Bitset> {
   inline K inDegree(K v) const noexcept {
     return degree(v);
   }
-  inline void setEdgeValue(K u, K v, E w) noexcept {
-    G::setEdgeValue(u, v, w);
-    G::setEdgeValue(v, u, w);
+
+  template <class FT>
+  inline void setEdgeValue(K u, K v, E w, FT ft) {
+    G::setEdgeValue(u, v, w, ft);
+    G::setEdgeValue(v, u, w, ft);
+  }
+  inline void setEdgeValue(K u, K v, E w) {
+    auto ft = [](K u) { return true; };
+    setEdgeValue(u, v, w, ft);
   }
 
   // Update operations.
   public:
+  template <class FT>
+  inline void addEdge(K u, K v, E w, FT ft) {
+    G::addEdge(u, v, w, ft);
+    G::addEdge(v, u, w, ft);
+  }
   inline void addEdge(K u, K v, E w=E()) {
-    G::addEdge(u, v, w);
-    G::addEdge(v, u, w);
+    auto ft = [](K u) { return true; };
+    addEdge(u, v, w, ft);
+  }
+
+  template <class FT>
+  inline void removeEdge(K u, K v, FT ft) {
+    G::removeEdge(u, v, ft);
+    G::removeEdge(v, u, ft);
   }
   inline void removeEdge(K u, K v) {
-    G::removeEdge(u, v);
-    G::removeEdge(v, u);
+    auto ft = [](K u) { return true; };
+    removeEdge(u, v, ft);
+  }
+
+  template <class FT>
+  inline void removeEdges(K u, FT ft) {
+    forEachEdgeKey(u, [&](K v) { G::removeEdge(v, u, ft); });
+    G::removeEdges(u, ft);
   }
   inline void removeEdges(K u) {
-    forEachEdgeKey(u, [&](K v) { G::removeEdge(v, u); });
-    G::removeEdges(u);
+    auto ft = [](K u) { return true; };
+    removeEdges(u, ft);
+  }
+
+  template <class FT>
+  inline void removeInEdges(K v, FT ft) {
+    removeEdges(v, ft);
   }
   inline void removeInEdges(K v) {
-    removeEdges(v);
+    auto ft = [](K u) { return true; };
+    removeInEdges(v, ft);
   }
 };
 

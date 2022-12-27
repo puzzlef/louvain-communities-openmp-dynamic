@@ -46,7 +46,14 @@ inline void selfLoopU(G& a, E w, FT ft) {
   a.forEachVertexKey([&](auto u) { if (ft(u)) a.addEdge(u, u, w); });
   a.update();
 }
+template <class G, class E, class FT>
+inline auto selfLoop(const G& x, E w, FT ft) {
+  G a = x; selfLoopU(a, w, ft);
+  return a;
+}
 
+
+#ifdef OPENMP
 template <class G, class E, class FT>
 inline void selfLoopOmpU(G& a, E w, FT ft) {
   #pragma omp parallel
@@ -55,16 +62,9 @@ inline void selfLoopOmpU(G& a, E w, FT ft) {
   }
   updateOmpU(a);
 }
-
-
-template <class G, class E, class FT>
-inline auto selfLoop(const G& x, E w, FT ft) {
-  G a = x; selfLoopU(a, w, ft);
-  return a;
-}
-
 template <class G, class E, class FT>
 inline auto selfLoopOmp(const G& x, E w, FT ft) {
   G a = x; selfLoopOmpU(a, w, ft);
   return a;
 }
+#endif
