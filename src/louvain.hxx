@@ -165,14 +165,14 @@ inline void louvainInitializeOmp(vector<K>& vcom, vector<W>& ctot, const G& x, c
  */
 template <class G, class K, class W>
 inline void louvainInitializeFrom(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot, const vector<K>& q) {
-  copyValues(q, vcom, 0, min(q.size(), vcom.size()));
+  copyValuesW(vcom, q, 0, min(q.size(), vcom.size()));
   louvainCommunityWeights(ctot, x, vcom, vtot);
 }
 
 #ifdef OPENMP
 template <class G, class K, class W>
 inline void louvainInitializeFromOmp(vector<K>& vcom, vector<W>& ctot, const G& x, const vector<W>& vtot, const vector<K>& q) {
-  copyValuesOmp(q, vcom, 0, min(q.size(), vcom.size()));
+  copyValuesOmpW(vcom, q, 0, min(q.size(), vcom.size()));
   louvainCommunityWeightsOmp(ctot, x, vcom, vtot);
 }
 #endif
@@ -673,7 +673,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FA fa, 
       louvainVertexWeightsOmp(vtot, x);
       if (q) louvainInitializeFromOmp(vcom, ctot, x, vtot, *q);
       else   louvainInitializeOmp(vcom, ctot, x, vtot);
-      copyValuesOmp(vcom, a);
+      copyValuesOmpW(a, vcom);
       for (l=0, p=0; M>0 && p<P;) {
         int m = 0;
         if (p==0) m = louvainMoveOmp(vcom, ctot, vcs, vcout, y, vtot, M, R, E, L, fa, fp);

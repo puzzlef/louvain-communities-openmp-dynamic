@@ -182,6 +182,10 @@ template <class TA, class TX>
 inline void copyValuesW(vector<TA>& a, const vector<TX>& x) {
   return copyValuesW(a.data(), x.data(), x.size());
 }
+template <class TA, class TX>
+inline void copyValuesW(vector<TA>& a, const vector<TX>& x, size_t i, size_t n) {
+  return copyValuesW(a.data()+i, x.data()+i, n);
+}
 
 
 #ifdef OPENMP
@@ -196,6 +200,10 @@ inline void copyValuesOmpW(TA *a, const TX *x, size_t N) {
 template <class TA, class TX>
 inline void copyValuesOmpW(vector<TA>& a, const vector<TX>& x) {
   return copyValuesOmpW(a.data(), x.data(), x.size());
+}
+template <class TA, class TX>
+inline void copyValuesOmpW(vector<TA>& a, const vector<TX>& x, size_t i, size_t n) {
+  return copyValuesOmpW(a.data()+i, x.data()+i, n);
 }
 #endif
 
