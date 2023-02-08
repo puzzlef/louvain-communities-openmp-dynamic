@@ -14,24 +14,33 @@ export DOWNLOAD="0"
 
 # 1. Static vs Dynamic Louvain
 export MAX_THREADS="64"
-./main.sh
+# ./main.sh
+
+# 2. For multi-batch experiments
+export REPEAT_BATCH="1"
+export BATCH_LENGTH="5000"
+export BATCH_INSERTIONS_BEGIN="0.001"
+export BATCH_INSERTIONS_END="0.001"
+./main.sh "--multi-batch"
 
 # For scaling experiments
+export REPEAT_BATCH="5"
+export BATCH_LENGTH="1"
 export NUM_THREADS_BEGIN="1"
 export NUM_THREADS_END="128"
 export NUM_THREADS_STEP="*=2"
 
-# 2. With strong scaling (fixed batch size)
+# 3. With strong scaling (fixed batch size)
 export BATCH_INSERTIONS_BEGIN="0.001"
 export BATCH_INSERTIONS_END="0.001"
-./main.sh "--strong-scaling"
+# ./main.sh "--strong-scaling"
 
-# 3. With weak scaling
+# 4. With weak scaling
 export BATCH_INSERTIONS_BEGIN="0.0001"
 export BATCH_INSERTIONS_END="0.0128"
 export BATCH_INSERTIONS_STEP="*=2"
 export NUM_THREADS_MODE="with-batch"
-./main.sh "--weak-scaling"
+# ./main.sh "--weak-scaling"
 
 # Signal completion
 event="puzzlef_${src//-/_}"

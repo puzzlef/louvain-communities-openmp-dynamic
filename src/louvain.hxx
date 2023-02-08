@@ -540,6 +540,7 @@ inline auto louvainAffectedVerticesDeltaScreening(const G& x, const vector<tuple
       louvainScanCommunity(vcs, vcout, u, v, w, vcom);
     }
     auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs, vcout, M, R);
+    if (e<=0) continue;
     vertices[u]  = true;
     neighbors[u] = true;
     communities[c] = true;

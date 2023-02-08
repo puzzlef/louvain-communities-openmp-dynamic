@@ -94,9 +94,11 @@ inline void runAbsoluteBatches(const G& x, R& rnd, F fn) {
   for (int epoch=0;; ++epoch) {
     for (int r=0; r<REPEAT_BATCH; ++r) {
       auto y  = duplicate(x);
-      auto deletions  = removeRandomEdges(y, rnd, d, 1, x.span()-1);
-      auto insertions = addRandomEdges   (y, rnd, i, 1, x.span()-1);
-      fn(y, deletions, insertions, epoch);
+      for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
+        auto deletions  = removeRandomEdges(y, rnd, d, 1, x.span()-1);
+        auto insertions = addRandomEdges   (y, rnd, i, 1, x.span()-1);
+        fn(y, deletions, insertions, sequence, epoch);
+      }
     }
     if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
     d BATCH_DELETIONS_STEP;
@@ -114,9 +116,11 @@ inline void runRelativeBatches(const G& x, R& rnd, F fn) {
   for (int epoch=0;; ++epoch) {
     for (int r=0; r<REPEAT_BATCH; ++r) {
       auto y  = duplicate(x);
-      auto deletions  = removeRandomEdges(y, rnd, size_t(d * x.size()/2), 1, x.span()-1);
-      auto insertions = addRandomEdges   (y, rnd, size_t(i * x.size()/2), 1, x.span()-1);
-      fn(y, deletions, insertions, epoch);
+      for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
+        auto deletions  = removeRandomEdges(y, rnd, size_t(d * x.size()/2), 1, x.span()-1);
+        auto insertions = addRandomEdges   (y, rnd, size_t(i * x.size()/2), 1, x.span()-1);
+        fn(y, deletions, insertions, sequence, epoch);
+      }
     }
     if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
     d BATCH_DELETIONS_STEP;
@@ -174,21 +178,35 @@ void runExperiment(const G& x) {
   // Get community memberships on original graph (static).
   auto a0 = louvainStaticSeq(x, init);
   auto b0 = louvainStaticOmp(x, init);
+  #if BATCH_LENGTH!=1
+  vector<K> B2, B3, B4;
+  #else
+  const auto& B2 = b0.membership;
+  const auto& B3 = b0.membership;
+  const auto& B4 = b0.membership;
+  #endif
   // Get community memberships on updated graph (dynamic).
-  runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int epoch) {
+  runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int sequence, int epoch) {
     double M = edgeWeightOmp(y)/2;
     // Follow a specific result logging format, which can be easily parsed later.
     auto glog = [&](const auto& ans, const char *technique, int numThreads) {
       LOG(
-        "{-%.3e/+%.3e batch, %03d threads} -> "
+        "{-%.3e/+%.3e [%04d] batch, %03d threads} -> "
         "{%09.1fms, %04d iters, %03d passes, %01.9f modularity} %s\n",
-        double(deletions.size()), double(insertions.size()), numThreads,
+        double(deletions.size()), double(insertions.size()), sequence, numThreads,
         ans.time, ans.iterations, ans.passes, getModularity(y, ans, M), technique
       );
     };
+    #if BATCH_LENGTH!=1
+    if (sequence==0) {
+      B2 = b0.membership;
+      B3 = b0.membership;
+      B4 = b0.membership;
+    }
+    #endif
     // Find static sequential Louvain.
-    auto a1 = louvainStaticSeq(y, init, {repeat});
-    glog(a1, "louvainStaticSeq", 1);
+    // auto a1 = louvainStaticSeq(y, init, {repeat});
+    // glog(a1, "louvainStaticSeq", 1);
     // Adjust number of threads.
     runThreads(epoch, [&](int numThreads) {
       auto flog = [&](const auto& ans, const char *technique) {
@@ -198,14 +216,19 @@ void runExperiment(const G& x) {
       auto b1 = louvainStaticOmp(y, init, {repeat});
       flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainStaticOmp(y, &b0.membership, {repeat});
+      auto b2 = louvainStaticOmp(y, &B2, {repeat});
       flog(b2, "louvainNaiveDynamicOmp");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &b0.membership, {repeat});
+      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat});
       flog(b3, "louvainDynamicDeltaScreeningOmp");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &b0.membership, {repeat});
+      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat});
       flog(b4, "louvainDynamicFrontierOmp");
+      #if BATCH_LENGTH!=1
+      B2 = b2.membership;
+      B3 = b3.membership;
+      B4 = b4.membership;
+      #endif
     });
   });
 }
