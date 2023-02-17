@@ -18,12 +18,12 @@ fi
 : "${REPEAT_METHOD:=1}"
 # Parameter sweep for batch (randomly generated)
 : "${BATCH_UNIT:=%}"
-: "${BATCH_DELETIONS_BEGIN:=0}"
-: "${BATCH_DELETIONS_END:=0}"
-: "${BATCH_DELETIONS_STEP:=+=1}"
-: "${BATCH_INSERTIONS_BEGIN:=0.00000001}"
-: "${BATCH_INSERTIONS_END:=0.1}"
-: "${BATCH_INSERTIONS_STEP:=*=10}"
+: "${BATCH_DELETIONS_BEGIN:=0.00000001}"
+: "${BATCH_DELETIONS_END:=0.1}"
+: "${BATCH_DELETIONS_STEP:=*=10}"
+: "${BATCH_INSERTIONS_BEGIN:=0}"
+: "${BATCH_INSERTIONS_END:=0}"
+: "${BATCH_INSERTIONS_STEP:=+=1}"
 # Parameter sweep for number of threads
 : "${NUM_THREADS_MODE:=all}"
 : "${NUM_THREADS_BEGIN:=64}"

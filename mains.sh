@@ -22,14 +22,14 @@ export NUM_THREADS_END="128"
 export NUM_THREADS_STEP="*=2"
 
 # 2. With strong scaling (fixed batch size)
-export BATCH_INSERTIONS_BEGIN="0.001"
-export BATCH_INSERTIONS_END="0.001"
+export BATCH_DELETIONS_BEGIN="0.001"
+export BATCH_DELETIONS_END="0.001"
 # ./main.sh "--strong-scaling"
 
 # 3. With weak scaling
-export BATCH_INSERTIONS_BEGIN="0.0001"
-export BATCH_INSERTIONS_END="0.0128"
-export BATCH_INSERTIONS_STEP="*=2"
+export BATCH_DELETIONS_BEGIN="0.0001"
+export BATCH_DELETIONS_END="0.0128"
+export BATCH_DELETIONS_STEP="*=2"
 export NUM_THREADS_MODE="with-batch"
 # ./main.sh "--weak-scaling"
 
