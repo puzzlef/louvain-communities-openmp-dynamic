@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-src="louvain-openmp-static-vs-dynamic"
+src="louvain-communities-openmp-dynamic"
 ulimit -s unlimited
 
 # Download program
@@ -34,5 +34,4 @@ export NUM_THREADS_MODE="with-batch"
 # ./main.sh "--weak-scaling"
 
 # Signal completion
-event="puzzlef_${src//-/_}"
-curl -X POST https://maker.ifttt.com/trigger/${event}/json/with/key/${IFTTT_KEY}
+curl -X POST "https://maker.ifttt.com/trigger/puzzlef/with/key/${IFTTT_KEY}?value1=$src"

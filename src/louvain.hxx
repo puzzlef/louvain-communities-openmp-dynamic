@@ -816,7 +816,7 @@ inline auto louvainDynamicDeltaScreeningSeq(const G& x, const vector<tuple<K, K>
   double M = edgeWeight(x)/2;
   const vector<K>& vcom = *q;
   vector<V> vtot(S), ctot(S);
-  vector<K> vcs; vector<W> vcout;
+  vector<K> vcs; vector<W> vcout(S);
   vector<B> vertices(S), neighbors(S), communities(S);
   louvainVertexWeights(vtot, x);
   louvainCommunityWeights(ctot, x, vcom, vtot);
@@ -837,7 +837,7 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>
   double M = edgeWeightOmp(x)/2;
   const vector<K>& vcom = *q;
   vector<W> vtot(S), ctot(S);
-  vector<K> vcs; vector<W> vcout;
+  vector<K> vcs; vector<W> vcout(S);
   vector<B> vertices(S), neighbors(S), communities(S);
   louvainVertexWeightsOmp(vtot, x);
   louvainCommunityWeightsOmp(ctot, x, vcom, vtot);
@@ -859,7 +859,7 @@ inline auto louvainDynamicFrontierSeq(const G& x, const vector<tuple<K, K>>& del
   using  B = FLAG;
   size_t S = x.span();
   const vector<K>& vcom = *q;
-  vector<B> vertices;
+  vector<B> vertices(S);
   auto fm = [&]() { louvainAffectedVerticesFrontier(vertices, x, deletions, insertions, vcom); };
   auto fa = [&](auto u) { return vertices[u]==B(1); };
   auto fp = [&](auto u) { x.forEachEdgeKey(u, [&](auto v) { vertices[v] = 1; }); };
@@ -871,8 +871,9 @@ inline auto louvainDynamicFrontierSeq(const G& x, const vector<tuple<K, K>>& del
 template <class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontierOmp(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   using  B = FLAG;
+  size_t S = x.span();
   const vector<K>& vcom = *q;
-  vector<B> vertices;
+  vector<B> vertices(S);
   auto fm = [&]() { louvainAffectedVerticesFrontierOmp(vertices, x, deletions, insertions, vcom); };
   auto fa = [&](auto u) { return vertices[u]==B(1); };
   auto fp = [&](auto u) { x.forEachEdgeKey(u, [&](auto v) { vertices[v] = 1; }); };

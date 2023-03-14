@@ -163,6 +163,9 @@ template <class T>
 inline void fillValueOmpU(vector<T>& a, const T& v) {
   fillValueOmpU(a.data(), a.size(), v);
 }
+inline void fillValueOmpU(vector<bool>& a, const bool& v) {
+  fill(a.begin(), a.end(), v);
+}
 #endif
 
 
