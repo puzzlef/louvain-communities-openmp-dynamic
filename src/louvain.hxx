@@ -54,12 +54,13 @@ struct LouvainResult {
   int   iterations;
   int   passes;
   float time;
+  float preprocessingTime;
 
-  LouvainResult(vector<K>&& membership, int iterations=0, int passes=0, float time=0) :
-  membership(membership), iterations(iterations), passes(passes), time(time) {}
+  LouvainResult(vector<K>&& membership, int iterations=0, int passes=0, float time=0, float preprocessingTime=0) :
+  membership(membership), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime) {}
 
-  LouvainResult(vector<K>& membership, int iterations=0, int passes=0, float time=0) :
-  membership(move(membership)), iterations(iterations), passes(passes), time(time) {}
+  LouvainResult(vector<K>& membership, int iterations=0, int passes=0, float time=0, float preprocessingTime=0) :
+  membership(move(membership)), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime) {}
 };
 
 
