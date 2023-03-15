@@ -200,12 +200,12 @@ void runExperiment(const G& x) {
       // Find naive-dynamic Louvain.
       auto b2 = louvainStaticOmp(y, &b0.membership, {repeat});
       flog(b2, "louvainNaiveDynamicOmp");
-      // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &b0.membership, {repeat});
-      flog(b3, "louvainDynamicDeltaScreeningOmp");
       // Find frontier based dynamic Louvain.
       auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &b0.membership, {repeat});
       flog(b4, "louvainDynamicFrontierOmp");
+      // Find delta-screening based dynamic Louvain.
+      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &b0.membership, {repeat});
+      flog(b3, "louvainDynamicDeltaScreeningOmp");
     });
   });
 }

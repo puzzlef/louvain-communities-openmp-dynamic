@@ -555,7 +555,7 @@ inline auto louvainAffectedVerticesDeltaScreening(vector<K>& vcs, vector<W>& vco
 
 #ifdef OPENMP
 template <class B, class G, class K, class V, class W>
-inline auto louvainAffectedVerticesDeltaScreeningOmp(vector<K>& vcs, vector<W>& vcout, vector<B>& vertices, vector<B>& neighbors, vector<B>& communities, const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
+inline auto louvainAffectedVerticesDeltaScreeningOmp(vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, vector<B>& vertices, vector<B>& neighbors, vector<B>& communities, const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
   size_t S = x.span();
   size_t D = deletions.size();
   size_t I = insertions.size();
@@ -571,21 +571,28 @@ inline auto louvainAffectedVerticesDeltaScreeningOmp(vector<K>& vcs, vector<W>& 
     neighbors[u] = 1;
     communities[vcom[v]] = 1;
   }
-  // This is a bit harder to parallelize, and may not be too useful.
-  for (size_t i=0; i<I;) {
-    K u = get<0>(insertions[i]);
-    louvainClearScan(vcs, vcout);
-    for (; i<I && get<0>(insertions[i])==u; ++i) {
-      K v = get<1>(insertions[i]);
-      V w = get<2>(insertions[i]);
-      if (vcom[u] == vcom[v]) continue;
-      louvainScanCommunity(vcs, vcout, u, v, w, vcom);
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int t = omp_get_thread_num();
+    K  u0 = I>0? get<0>(insertions[0]) : 0;
+    for (size_t i=0, n=0; i<I;) {
+      K u = get<0>(insertions[i]);
+      if (u!=u0) { ++n; u0 = u; }
+      if (n % T != t) { ++i; continue; }
+      louvainClearScan(*vcs[t], *vcout[t]);
+      for (; i<I && get<0>(insertions[i])==u; ++i) {
+        K v = get<1>(insertions[i]);
+        V w = get<2>(insertions[i]);
+        if (vcom[u] == vcom[v]) continue;
+        louvainScanCommunity(*vcs[t], *vcout[t], u, v, w, vcom);
+      }
+      auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, *vcs[t], *vcout[t], M, R);
+      if (e<=0) continue;
+      vertices[u]  = 1;
+      neighbors[u] = 1;
+      communities[c] = 1;
     }
-    auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs, vcout, M, R);
-    if (e<=0) continue;
-    vertices[u]  = 1;
-    neighbors[u] = 1;
-    communities[c] = 1;
   }
   #pragma omp parallel for schedule(auto)
   for (K u=0; u<S; ++u) {
@@ -835,10 +842,16 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>
   size_t S = x.span();
   double R = o.resolution;
   double M = edgeWeightOmp(x)/2;
+  int    T = omp_get_max_threads();
   const vector<K>& vcom = *q;
   vector<W> vtot(S), ctot(S);
-  vector<K> vcs; vector<W> vcout(S);
   vector<B> vertices(S), neighbors(S), communities(S);
+  vector<vector<K>*> vcs(T);
+  vector<vector<W>*> vcout(T);
+  for (int t=0; t<T; ++t) {
+    vcs[t]   = new vector<K>();
+    vcout[t] = new vector<W>(S);
+  }
   louvainVertexWeightsOmp(vtot, x);
   louvainCommunityWeightsOmp(ctot, x, vcom, vtot);
   auto fm = [&]() { louvainAffectedVerticesDeltaScreeningOmp(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); };
