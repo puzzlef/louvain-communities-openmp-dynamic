@@ -66,6 +66,42 @@ struct LouvainResult {
 
 
 
+// LOUVAIN HASHTABLES
+// ------------------
+
+/**
+ * Allocate a number of hashtables.
+ * @param vcs communities vertex u is linked to (updated)
+ * @param vcout total edge weight from vertex u to community C (updated)
+ * @param S size of each hashtable
+ */
+template <class K, class W>
+inline void louvainAllocateHashtables(vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, size_t S) {
+  size_t N = vcs.size();
+  for (size_t i=0; i<N; ++i) {
+    vcs[i]   = new vector<K>();
+    vcout[i] = new vector<W>(S);
+  }
+}
+
+
+/**
+ * Free a number of hashtables.
+ * @param vcs communities vertex u is linked to (updated)
+ * @param vcout total edge weight from vertex u to community C (updated)
+ */
+template <class K, class W>
+inline void louvainFreeHashtables(vector<vector<K>*>& vcs, vector<vector<W>*>& vcout) {
+  size_t N = vcs.size();
+  for (size_t i=0; i<N; ++i) {
+    delete vcs[i];
+    delete vcout[i];
+  }
+}
+
+
+
+
 // LOUVAIN INITIALIZE
 // ------------------
 
@@ -734,10 +770,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
   vector<W> vtot(S), ctot(S);
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
-  for (int t=0; t<T; ++t) {
-    vcs[t]   = new vector<K>();
-    vcout[t] = new vector<W>(S);
-  }
+  louvainAllocateHashtables(vcs, vcout, S);
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
@@ -776,10 +809,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
       }
     });
   }, o.repeat);
-  for (int t=0; t<T; ++t) {
-    delete vcs[t];
-    delete vcout[t];
-  }
+  louvainFreeHashtables(vcs, vcout);
   return LouvainResult<K>(a, l, p, t, tm);
 }
 #endif
@@ -827,7 +857,7 @@ inline auto louvainDynamicDeltaScreeningSeq(const G& x, const vector<tuple<K, K>
   vector<B> vertices(S), neighbors(S), communities(S);
   louvainVertexWeights(vtot, x);
   louvainCommunityWeights(ctot, x, vcom, vtot);
-  auto fm = [&]() { louvainAffectedVerticesDeltaScreening(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); };
+  auto fm = [&]() { louvainAffectedVerticesDeltaScreening(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); vcs.clear(); vcout.clear(); };
   auto fa = [&](auto u) { return vertices[u]==B(1); };
   auto fp = [](auto u) {};
   return louvainSeq(x, q, o, fm, fa, fp);
@@ -848,13 +878,10 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>
   vector<B> vertices(S), neighbors(S), communities(S);
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
-  for (int t=0; t<T; ++t) {
-    vcs[t]   = new vector<K>();
-    vcout[t] = new vector<W>(S);
-  }
+  louvainAllocateHashtables(vcs, vcout, S);
   louvainVertexWeightsOmp(vtot, x);
   louvainCommunityWeightsOmp(ctot, x, vcom, vtot);
-  auto fm = [&]() { louvainAffectedVerticesDeltaScreeningOmp(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); };
+  auto fm = [&]() { louvainAffectedVerticesDeltaScreeningOmp(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); louvainFreeHashtables(vcs, vcout); };
   auto fa = [&](auto u) { return vertices[u]==B(1); };
   auto fp = [](auto u) {};
   return louvainOmp(x, q, o, fm, fa, fp);

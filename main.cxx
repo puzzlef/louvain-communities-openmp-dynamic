@@ -172,7 +172,6 @@ void runExperiment(const G& x) {
   int retries = 5;
   vector<K> *init = nullptr;
   // Get community memberships on original graph (static).
-  auto a0 = louvainStaticSeq(x, init);
   auto b0 = louvainStaticOmp(x, init);
   // Get community memberships on updated graph (dynamic).
   runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int epoch) {
@@ -186,9 +185,6 @@ void runExperiment(const G& x) {
         ans.preprocessingTime, ans.time, ans.iterations, ans.passes, getModularity(y, ans, M), technique
       );
     };
-    // Find static sequential Louvain.
-    auto a1 = louvainStaticSeq(y, init, {repeat});
-    glog(a1, "louvainStaticSeq", 1);
     // Adjust number of threads.
     runThreads(epoch, [&](int numThreads) {
       auto flog = [&](const auto& ans, const char *technique) {
