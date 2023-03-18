@@ -83,8 +83,8 @@ Louvain *parameters* as `resolution = 1.0`, `tolerance = 1e-2` (for local-moving
 phase) with *tolerance* decreasing after every pass by a factor of
 `toleranceDeclineFactor = 10`, and a `passTolerance = 0.0` (when passes stop).
 In addition we limit the maximum number of iterations in a single local-moving
-phase with `maxIterations = 500`, and limit the maximum number of passes with
-`maxPasses = 500`. We run the Louvain algorithm until convergence (or until the
+phase with `maxIterations = 20`, and limit the maximum number of passes with
+`maxPasses = 20`. We run the Louvain algorithm until convergence (or until the
 maximum limits are exceeded), and measure the **time taken** for the
 *computation* (performed 5 times for averaging), the **modularity score**, the
 **total number of iterations** (in the *local-moving phase*), and the number
@@ -111,65 +111,15 @@ used for this experiment is available from the [SuiteSparse Matrix Collection].
 This experiment was done with guidance from [Prof. Kishore Kothapalli] and
 [Prof. Dip Sankar Banerjee].
 
+[![](https://i.imgur.com/v08cdyB.png)][sheetp]
+[![](https://i.imgur.com/pAUh0Ql.png)][sheetp]
+[![](https://i.imgur.com/bA7CMBF.png)][sheetp]
+[![](https://i.imgur.com/VlsiC93.png)][sheetp]
+[![](https://i.imgur.com/oO9fXcX.png)][sheetp]
+[![](https://i.imgur.com/7NGU3wh.png)][sheetp]
 
 [Louvain algorithm]: https://en.wikipedia.org/wiki/Louvain_method
 [community detection]: https://en.wikipedia.org/wiki/Community_search
-
-<br>
-
-```bash
-$ g++ -std=c++17 -O3 main.cxx
-$ ./a.out ~/data/web-Stanford.mtx
-$ ./a.out ~/data/web-BerkStan.mtx
-$ ...
-
-# Loading graph /home/subhajit/data/web-Stanford.mtx ...
-# order: 281903 size: 2312497 [directed] {}
-# order: 281903 size: 3985272 [directed] {} (symmetricize)
-# OMP_NUM_THREADS=12
-# [-0.000497 modularity] noop
-# [0e+00 batch_size; 00440.006 ms; 0025 iters.; 009 passes; 0.923382580 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00394.563 ms; 0027 iters.; 009 passes; 0.923351705 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00278.041 ms; 0030 iters.; 009 passes; 0.927210510 modularity] louvainOmpStatic
-# [5e+02 batch_size; 00101.633 ms; 0003 iters.; 003 passes; 0.914556682 modularity] louvainOmpNaiveDynamic
-# [5e+02 batch_size; 00107.587 ms; 0004 iters.; 004 passes; 0.914944172 modularity] louvainOmpDynamicDeltaScreening
-# [5e+02 batch_size; 00088.939 ms; 0003 iters.; 003 passes; 0.913411736 modularity] louvainOmpDynamicFrontier
-# ...
-# [1e+05 batch_size; 00552.708 ms; 0019 iters.; 006 passes; 0.925986648 modularity] louvainSeqStatic
-# [1e+05 batch_size; 00321.840 ms; 0026 iters.; 005 passes; 0.925740898 modularity] louvainOmpStatic
-# [1e+05 batch_size; 00130.201 ms; 0010 iters.; 004 passes; 0.912258267 modularity] louvainOmpNaiveDynamic
-# [1e+05 batch_size; 00115.326 ms; 0002 iters.; 002 passes; 0.912238598 modularity] louvainOmpDynamicDeltaScreening
-# [1e+05 batch_size; 00117.582 ms; 0010 iters.; 004 passes; 0.911141872 modularity] louvainOmpDynamicFrontier
-# [-5e+02 batch_size; 00389.191 ms; 0024 iters.; 008 passes; 0.923092246 modularity] louvainSeqStatic
-# [-5e+02 batch_size; 00286.037 ms; 0026 iters.; 008 passes; 0.926223278 modularity] louvainOmpStatic
-# [-5e+02 batch_size; 00106.936 ms; 0004 iters.; 004 passes; 0.914734781 modularity] louvainOmpNaiveDynamic
-# [-5e+02 batch_size; 00110.743 ms; 0004 iters.; 004 passes; 0.914734781 modularity] louvainOmpDynamicDeltaScreening
-# [-5e+02 batch_size; 00073.786 ms; 0002 iters.; 002 passes; 0.913197339 modularity] louvainOmpDynamicFrontier
-# ...
-# [-1e+05 batch_size; 00471.004 ms; 0018 iters.; 006 passes; 0.881129861 modularity] louvainSeqStatic
-# [-1e+05 batch_size; 00387.020 ms; 0017 iters.; 006 passes; 0.877473772 modularity] louvainOmpStatic
-# [-1e+05 batch_size; 00115.070 ms; 0004 iters.; 004 passes; 0.869384587 modularity] louvainOmpNaiveDynamic
-# [-1e+05 batch_size; 00106.264 ms; 0004 iters.; 004 passes; 0.869384587 modularity] louvainOmpDynamicDeltaScreening
-# [-1e+05 batch_size; 00099.210 ms; 0004 iters.; 004 passes; 0.868384838 modularity] louvainOmpDynamicFrontier
-#
-# Loading graph /home/subhajit/data/web-BerkStan.mtx ...
-# order: 685230 size: 7600595 [directed] {}
-# order: 685230 size: 13298940 [directed] {} (symmetricize)
-# OMP_NUM_THREADS=12
-# [-0.000316 modularity] noop
-# [0e+00 batch_size; 00735.782 ms; 0028 iters.; 009 passes; 0.935839474 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00741.732 ms; 0027 iters.; 009 passes; 0.937690854 modularity] louvainSeqStatic
-# [5e+02 batch_size; 00655.410 ms; 0028 iters.; 009 passes; 0.935854971 modularity] louvainOmpStatic
-# [5e+02 batch_size; 00216.361 ms; 0003 iters.; 003 passes; 0.932617486 modularity] louvainOmpNaiveDynamic
-# [5e+02 batch_size; 00246.924 ms; 0003 iters.; 003 passes; 0.932617486 modularity] louvainOmpDynamicDeltaScreening
-# [5e+02 batch_size; 00186.971 ms; 0004 iters.; 004 passes; 0.932644546 modularity] louvainOmpDynamicFrontier
-# ...
-```
-
-[![](https://i.imgur.com/wWKwFR7.png)][sheetp]
-[![](https://i.imgur.com/hSJblRu.png)][sheetp]
-[![](https://i.imgur.com/l1jvNsh.png)][sheetp]
-[![](https://i.imgur.com/9cdKCG6.png)][sheetp]
 
 <br>
 <br>
@@ -196,7 +146,7 @@ $ ...
 [Prof. Kishore Kothapalli]: https://faculty.iiit.ac.in/~kkishore/
 [SuiteSparse Matrix Collection]: https://sparse.tamu.edu
 [Louvain]: https://en.wikipedia.org/wiki/Louvain_method
-[gist]: https://gist.github.com/wolfram77/3f9d0452901d3719d0e0baf345615c91
-[charts]: https://imgur.com/a/VsGTNg4
-[sheets]: https://docs.google.com/spreadsheets/d/13GMWmhcw5EbCVgVVtP08yQQrpQmE_EIyhNGb0MzEPX8/edit?usp=sharing
-[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vR_oG_LC7Nuy3B8dlM1SUM4UeCpB946foX7cvBxeYs8YZHS0h76thPjQU5kI_shiSvD7FjbppNT4-G1/pubhtml
+[gist]: https://gist.github.com/wolfram77/2d64f933f6524ba15ee7593f7e3b10f5
+[charts]: https://imgur.com/a/QvH0m2i
+[sheets]: https://docs.google.com/spreadsheets/d/1F6Z-lWNDYynm6m2PTsIN_nxMu8Y9CrkIQagCU0Nr2LU/edit?usp=sharing
+[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vS5LH03ALzgcv6QNV9I9Wl1_000Vl9BNZKnMdF04d4qeG5dqQ60fFHL4xynG_8LnVFbsyaJAucWuen6/pubhtml
