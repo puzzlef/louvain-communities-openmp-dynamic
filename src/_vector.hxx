@@ -1,11 +1,14 @@
 #pragma once
+#include <vector>
+#include <algorithm>
 #include <cstdint>
 #include <cmath>
-#include <algorithm>
-#include <vector>
+#include <numeric>
 #include "_debug.hxx"
 
 using std::vector;
+using std::reduce;
+using std::sort;
 using std::abs;
 using std::max;
 using std::fill;
@@ -18,6 +21,47 @@ using std::fill;
 
 template <class T>
 using vector2d = vector<vector<T>>;
+
+
+
+
+// GINI COEFFICIENT
+// ----------------
+
+/**
+ * Compute the Lorenz curve of values.
+ * @param x values
+ * @returns non-normalized lorenz curve
+ */
+template <class T>
+inline vector<T> lorenzCurve(const vector<T>& x) {
+  size_t N = x.size();
+  vector<T> a(x.begin(), x.end());
+  sort(a.begin(), a.end());
+  for (size_t i=1; i<N; ++i)
+    a[i] += a[i-1];
+  return a;
+}
+
+
+/**
+ * Compute the Gini coefficient of values.
+ * @param lc non-normalized lorenz curve
+ * @returns gini coefficient
+ */
+template <class T>
+inline double giniCoefficient(const vector<T>& lc) {
+  size_t N = lc.size();
+  T last   = lc.back();
+  double total = 0;
+  double ineq  = 0;
+  for (size_t i=0; i<N; ++i) {
+    double   ideal = double(i+1)/N;
+    ineq  += ideal - lc[i]/last;
+    total += ideal;
+  }
+  return ineq/total;
+}
 
 
 

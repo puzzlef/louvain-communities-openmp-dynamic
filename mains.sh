@@ -13,7 +13,7 @@ fi
 export DOWNLOAD="0"
 
 # 1. Static vs Dynamic Louvain
-export MAX_THREADS="64"
+export MAX_THREADS="24"
 ./main.sh
 
 # For scaling experiments

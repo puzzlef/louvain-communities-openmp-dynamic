@@ -1,4 +1,9 @@
 #pragma once
+#include <vector>
+#include <unordered_map>
+
+using std::vector;
+using std::unordered_map;
 
 
 
@@ -42,5 +47,28 @@ inline double edgeWeightOmp(const G& x) {
     if (!x.hasVertex(u)) continue;
     a += edgeWeight(x, u);
   }
+  return a;
+}
+
+
+
+
+// COUNT AS
+// --------
+
+/**
+ * Count the number of vertices with each given value.
+ * @param x original graph
+ * @param vdata vertex values
+ * @param fm the thing to be counted (value)
+ */
+template <class G, class V, class FM>
+inline auto countAs(const G& x, const vector<V>& vdata, FM fm) {
+  using T = decltype(fm(V()));
+  unordered_map<T, size_t> a;
+  x.forEachVertexKey([&](auto u) {
+    auto d = fm(vdata[u]);
+    a[d] += 1;
+  });
   return a;
 }
