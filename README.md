@@ -172,6 +172,25 @@ batch updates with *Dynamic Frontier* based *Louvain*.
 <br>
 
 
+## Build instructions
+
+To run the [input-large] experiment, download this repository and run the
+following. Note that input graphs must be placed in `~/Data` directory, and
+output logs will be written to `~/Logs` directory.
+
+```bash
+# Perform comparision on large graphs
+$ DOWNLOAD=0 ./mains.sh
+
+# Perform comparision on large graphs with custom number of threads
+$ DOWNLOAD=0 MAX_THREADS=4 ./mains.sh
+```
+
+
+<br>
+<br>
+
+
 ## References
 
 - [Fast unfolding of communities in large networks; Vincent D. Blondel et al. (2008)](https://arxiv.org/abs/0803.0476)
