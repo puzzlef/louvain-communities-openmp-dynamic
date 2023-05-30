@@ -56,6 +56,7 @@ inline auto addRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
     a.addEdge(v, u, w);
     insertions.push_back(make_tuple(u, v, w));
     insertions.push_back(make_tuple(v, u, w));
+    return true;
   };
   for (size_t l=0; l<batchSize; ++l)
     retry([&]() { return addRandomEdge(a, rnd, i, n, V(1), fe); }, retries);
@@ -74,6 +75,7 @@ auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
     a.removeEdge(v, u);
     deletions.push_back(make_tuple(u, v));
     deletions.push_back(make_tuple(v, u));
+    return true;
   };
   for (size_t l=0; l<batchSize; ++l)
     retry([&]() { return removeRandomEdge(a, rnd, i, n, fe); }, retries);
@@ -171,8 +173,17 @@ void runExperiment(const G& x) {
   int repeat  = REPEAT_METHOD;
   int retries = 5;
   vector<K> *init = nullptr;
+  double M = edgeWeightOmp(x)/2;
+  // Result logging format only for static results (skip parsing).
+  auto blog = [&](const auto& ans, const char *technique) {
+    LOG(
+      "{%03d threads} -> {%09.1f/%09.1fms, %04d iters, %03d passes, %01.9f modularity} %s\n",
+      MAX_THREADS, ans.preprocessingTime, ans.time, ans.iterations, ans.passes, getModularity(x, ans, M), technique
+    );
+  };
   // Get community memberships on original graph (static).
-  auto b0 = louvainStaticOmp(x, init);
+  auto b0 = louvainStaticOmp(x, init, {5});
+  blog(b0, "louvainStaticOmp");
   // Get community memberships on updated graph (dynamic).
   runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int epoch) {
     double M = edgeWeightOmp(y)/2;

@@ -13,6 +13,28 @@ using std::vector;
 
 
 
+// ADD VERTICES IF
+// ---------------
+// Add a range of vertices.
+
+template <class G, class K, class V, class FT>
+inline void addVerticesIfU(G& a, K u, K U, V d, FT ft) {
+  if (U<=1) return;
+  a.respan(U);
+  for (; u<U; ++u)
+    if (ft(u, d)) a.addVertex(u, d);
+}
+
+
+template <class G, class K, class V=typename G::vertex_value_type>
+inline void addVerticesU(G& a, K u, K U, V d=V()) {
+  auto ft = [](auto u, auto d) { return true; };
+  addVerticesIfU(a, u, U, d, ft);
+}
+
+
+
+
 // ADD EDGE
 // --------
 // Add an edge (in parallel).
@@ -21,14 +43,14 @@ template <class G, class K, class E, class FT>
 inline void addEdgeU(G &a, K u, K v, E w, FT ft) {
   a.addEdge(u, v, w, ft);
 }
-template <class G, class K, class E>
+template <class G, class K, class E=typename G::edge_value_type>
 inline void addEdgeU(G& a, K u, K v, E w=E()) {
   a.addEdge(u, v, w);
 }
 
 
 #ifdef OPENMP
-template <class G, class K, class E>
+template <class G, class K, class E=typename G::edge_value_type>
 inline void addEdgeOmpU(G& a, K u, K v, E w=E()) {
   auto ft = [](K u) { return belongsOmp(u); };
   a.addEdge(u, v, w, ft);

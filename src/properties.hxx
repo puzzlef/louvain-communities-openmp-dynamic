@@ -44,3 +44,15 @@ inline double edgeWeightOmp(const G& x) {
   }
   return a;
 }
+
+
+/**
+ * Find the outgoing degree of each vertex.
+ * @param a degrees of each vertex (output)
+ * @param x original graph
+ * @returns outgoing degree of each vertex
+ */
+template <class G, class K>
+inline void degreesW(vector<K>& a, const G& x) {
+  x.forEachVertexKey([&](auto u) { a[u] = x.degree(u); });
+}

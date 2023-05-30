@@ -137,6 +137,62 @@ inline void scatterValuesOmpW(vector<TA>& a, const vector<TX>& x, const IS& is) 
 
 
 
+// SCATTER OR
+// ----------
+
+template <class TA, class TX, class IS>
+inline void scatterOrW(TA *a, const TX *x, const IS& is) {
+  ASSERT(a && x);
+  size_t j = 0;
+  for (auto i : is)
+    a[i] |= TA(x[j++]);
+}
+template <class TA, class TX, class IS>
+inline void scatterOrW(vector<TA>& a, const vector<TX>& x, const IS& is) {
+  scatterOrW(a.data(), x.data(), is);
+}
+
+
+#ifdef OPENMP
+template <class TA, class TX, class IS>
+inline void scatterOrOmpW(TA *a, const TX *x, const IS& is) {
+  ASSERT(a && x);
+  size_t N = is.size();
+  #pragma omp parallel for schedule(auto)
+  for (size_t j=0; j<N; ++j)
+    a[is[j]] |= TA(x[j]);
+}
+template <class TA, class TX, class IS>
+inline void scatterOrOmpW(vector<TA>& a, const vector<TX>& x, const IS& is) {
+  scatterOrOmpW(a.data(), x.data(), is);
+}
+#endif
+
+
+
+
+// VALUE INDICES
+// -------------
+
+template <class TA, class TX, class FM>
+inline void valueIndicesW(vector2d<TA>& a, const vector<TX>& x, FM fm) {
+  size_t N = x.size();
+  for (size_t i=0; i<N; ++i) {
+    TX  v = fm(x[i]);
+    if (v <  TX()) continue;
+    if (v >= a.size()) a.resize(v+1);
+    a[v].push_back(TA(i));
+  }
+}
+template <class TA, class TX, class FM>
+inline vector2d<TA> valueIndicesAs(const vector<TX>& x, FM fm) {
+  vector2d<TA> a; valueIndicesW(a, x, fm);
+  return a;
+}
+
+
+
+
 // FILL VALUE
 // ----------
 
@@ -180,14 +236,9 @@ inline void copyValuesW(TA *a, const TX *x, size_t N) {
   for (size_t i=0; i<N; ++i)
     a[i] = x[i];
 }
-
 template <class TA, class TX>
 inline void copyValuesW(vector<TA>& a, const vector<TX>& x) {
   return copyValuesW(a.data(), x.data(), x.size());
-}
-template <class TA, class TX>
-inline void copyValuesW(vector<TA>& a, const vector<TX>& x, size_t i, size_t n) {
-  return copyValuesW(a.data()+i, x.data()+i, n);
 }
 
 
@@ -199,14 +250,41 @@ inline void copyValuesOmpW(TA *a, const TX *x, size_t N) {
   for (size_t i=0; i<N; ++i)
     a[i] = x[i];
 }
-
 template <class TA, class TX>
 inline void copyValuesOmpW(vector<TA>& a, const vector<TX>& x) {
   return copyValuesOmpW(a.data(), x.data(), x.size());
 }
-template <class TA, class TX>
-inline void copyValuesOmpW(vector<TA>& a, const vector<TX>& x, size_t i, size_t n) {
-  return copyValuesOmpW(a.data()+i, x.data()+i, n);
+#endif
+
+
+
+
+// MULTIPLY VALUE
+// --------------
+
+template <class TA, class TX, class TV>
+inline void multiplyValueW(TA *a, const TX *x, TV v, size_t N) {
+  ASSERT(a && x);
+  for (size_t i=0; i<N; ++i)
+    a[i] = TA(x[i] * v);
+}
+template <class TA, class TX, class TV>
+inline void multiplyValueW(vector<TA>& a, const vector<TX>& x, TV v) {
+  multiplyValueW(a.data(), x.data(), v, x.size());
+}
+
+
+#ifdef OPENMP
+template <class TA, class TX, class TV>
+inline void multiplyValueOmpW(TA *a, const TX *x, TV v, size_t N) {
+  ASSERT(a && x);
+  #pragma omp parallel for schedule(auto)
+  for (size_t i=0; i<N; ++i)
+    a[i] = TA(x[i] * v);
+}
+template <class TA, class TX, class TV>
+inline void multiplyValueOmpW(vector<TA>& a, const vector<TX>& x, TV v) {
+  multiplyValueOmpW(a.data(), x.data(), v, x.size());
 }
 #endif
 
@@ -222,14 +300,9 @@ inline void multiplyValuesW(TA *a, const TX *x, const TY *y, size_t N) {
   for (size_t i=0; i<N; ++i)
     a[i] = TA(x[i] * y[i]);
 }
-
 template <class TA, class TX, class TY>
 inline void multiplyValuesW(vector<TA>& a, const vector<TX>& x, const vector<TY>& y) {
   multiplyValuesW(a.data(), x.data(), y.data(), x.size());
-}
-template <class TA, class TX, class TY>
-inline void multiplyValuesW(vector<TA>& a, const vector<TX>& x, const vector<TY>& y, size_t i, size_t N) {
-  multiplyValuesW(a.data()+i, x.data()+i, y.data()+i, N);
 }
 
 
@@ -241,14 +314,44 @@ inline void multiplyValuesOmpW(TA *a, const TX *x, const TY *y, size_t N) {
   for (size_t i=0; i<N; ++i)
     a[i] = TA(x[i] * y[i]);
 }
-
 template <class TA, class TX, class TY>
 inline void multiplyValuesOmpW(vector<TA>& a, const vector<TX>& x, const vector<TY>& y) {
   multiplyValuesOmpW(a.data(), x.data(), y.data(), x.size());
 }
-template <class TA, class TX, class TY>
-inline void multiplyValuesOmpW(vector<TA>& a, const vector<TX>& x, const vector<TY>& y, size_t i, size_t N) {
-  multiplyValuesOmpW(a.data()+i, x.data()+i, y.data()+i, N);
+#endif
+
+
+
+
+// SUM VALUES
+// ----------
+
+
+template <class TX, class TA=TX>
+inline TA sumValues(const TX *x, size_t N, TA a=TA()) {
+  ASSERT(x);
+  for (size_t i=0; i<N; ++i)
+    a += TA(x[i]);
+  return a;
+}
+template <class TX, class TA=TX>
+inline TA sumValues(const vector<TX>& x, TA a=TA()) {
+  return sumValues(x.data(), x.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TA=TX>
+inline TA sumValuesOmp(const TX *x, size_t N, TA a=TA()) {
+  ASSERT(x);
+  #pragma omp parallel for schedule(auto) reduction(+:a)
+  for (size_t i=0; i<N; ++i)
+    a += TA(x[i]);
+  return a;
+}
+template <class TX, class TA=TX>
+inline TA sumValuesOmp(const vector<TX>& x, TA a=TA()) {
+  return sumValuesOmp(x.data(), x.size(), a);
 }
 #endif
 
@@ -265,28 +368,9 @@ inline TA l1Norm(const TX *x, size_t N, TA a=TA()) {
     a += TA(abs(x[i]));
   return a;
 }
-
 template <class TX, class TA=TX>
 inline TA l1Norm(const vector<TX>& x, TA a=TA()) {
   return l1Norm(x.data(), x.size(), a);
-}
-
-
-template <class TX, class TY, class TA=TX>
-inline TA l1Norm(const TX *x, const TY *y, size_t N, TA a=TA()) {
-  ASSERT(x && y);
-  for (size_t i=0; i<N; ++i)
-    a += TA(abs(x[i] - y[i]));
-  return a;
-}
-
-template <class TX, class TY, class TA=TX>
-inline TA l1Norm(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
-  return l1Norm(x.data(), y.data(), x.size(), a);
-}
-template <class TX, class TY, class TA=TX>
-inline TA l1Norm(const vector<TX>& x, const vector<TY>& y, size_t i, size_t N, TA a=TA()) {
-  return l1Norm(x.data()+i, y.data()+i, N, a);
 }
 
 
@@ -299,29 +383,81 @@ inline TA l1NormOmp(const TX *x, size_t N, TA a=TA()) {
     a += TA(abs(x[i]));
   return a;
 }
-
 template <class TX, class TA=TX>
 inline TA l1NormOmp(const vector<TX>& x, TA a=TA()) {
   return l1NormOmp(x.data(), x.size(), a);
 }
+#endif
 
+
+
+
+// L1-NORM DELTA
+// -------------
 
 template <class TX, class TY, class TA=TX>
-inline TA l1NormOmp(const TX *x, const TY *y, size_t N, TA a=TA()) {
+inline TA l1NormDelta(const TX *x, const TY *y, size_t N, TA a=TA()) {
+  ASSERT(x && y);
+  for (size_t i=0; i<N; ++i)
+    a += TA(abs(x[i] - y[i]));
+  return a;
+}
+template <class TX, class TY, class TA=TX>
+inline TA l1NormDelta(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
+  return l1NormDelta(x.data(), y.data(), x.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TY, class TA=TX>
+inline TA l1NormOmpDelta(const TX *x, const TY *y, size_t N, TA a=TA()) {
   ASSERT(x && y);
   #pragma omp parallel for schedule(auto) reduction(+:a)
   for (size_t i=0; i<N; ++i)
     a += TA(abs(x[i] - y[i]));
   return a;
 }
-
 template <class TX, class TY, class TA=TX>
-inline TA l1NormOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
-  return l1NormOmp(x.data(), y.data(), x.size(), a);
+inline TA l1NormOmpDelta(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
+  return l1NormOmpDelta(x.data(), y.data(), x.size(), a);
 }
-template <class TX, class TY, class TA=TX>
-inline TA l1NormOmp(const vector<TX>& x, const vector<TY>& y, size_t i, size_t N, TA a=TA()) {
-  return l1NormOmp(x.data()+i, y.data()+i, N, a);
+#endif
+
+
+
+
+// L1-NORM DELTA AT
+// ----------------
+
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l1NormDeltaAt(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()) {
+  ASSERT(x && y && is);
+  for (size_t l=0; l<IS; ++l) {
+    TI i = is[l];
+    a += TA(abs(x[i] - y[i]));
+  }
+  return a;
+}
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l1NormDeltaAt(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
+  return l1NormDeltaAt(x.data(), y.data(), is.data(), is.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l1NormDeltaAtOmp(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()) {
+  ASSERT(x && y && is);
+  #pragma omp parallel for schedule(auto) reduction(+:a)
+  for (size_t l=0; l<IS; ++l) {
+    TI i = is[l];
+    a += TA(abs(x[i] - y[i]));
+  }
+  return a;
+}
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l1NormDeltaAtOmp(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
+  return l1NormDeltaAtOmp(x.data(), y.data(), is.data(), is.size(), a);
 }
 #endif
 
@@ -338,28 +474,9 @@ inline TA l2Norm(const TX *x, size_t N, TA a=TA()) {
     a += TA(x[i]) * TA(x[i]);
   return a;
 }
-
 template <class TX, class TA=TX>
 inline TA l2Norm(const vector<TX>& x, TA a=TA()) {
   return l2Norm(x.data(), x.size(), a);
-}
-
-
-template <class TX, class TY, class TA=TX>
-inline TA l2Norm(const TX *x, const TY *y, size_t N, TA a=TA()) {
-  ASSERT(x && y);
-  for (size_t i=0; i<N; ++i)
-    a += TA(x[i] - y[i]) * TA(x[i] - y[i]);
-  return a;
-}
-
-template <class TX, class TY, class TA=TX>
-inline TA l2Norm(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
-  return l2Norm(x.data(), y.data(), x.size(), a);
-}
-template <class TX, class TY, class TA=TX>
-inline TA l2Norm(const vector<TX>& x, const vector<TY>& y, size_t i, size_t N, TA a=TA()) {
-  return l2Norm(x.data()+i, y.data()+i, N, a);
 }
 
 
@@ -372,29 +489,81 @@ inline TA l2NormOmp(const TX *x, size_t N, TA a=TA()) {
     a += TA(x[i]) * TA(x[i]);
   return a;
 }
-
 template <class TX, class TA=TX>
 inline TA l2NormOmp(const vector<TX>& x, TA a=TA()) {
   return l2NormOmp(x.data(), x.size(), a);
 }
+#endif
 
+
+
+
+// L2-NORM DELTA
+// -------------
 
 template <class TX, class TY, class TA=TX>
-inline TA l2NormOmp(const TX *x, const TY *y, size_t N, TA a=TA()) {
+inline TA l2NormDelta(const TX *x, const TY *y, size_t N, TA a=TA()) {
+  ASSERT(x && y);
+  for (size_t i=0; i<N; ++i)
+    a += TA(x[i] - y[i]) * TA(x[i] - y[i]);
+  return a;
+}
+template <class TX, class TY, class TA=TX>
+inline TA l2NormDelta(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
+  return l2NormDelta(x.data(), y.data(), x.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TY, class TA=TX>
+inline TA l2NormDeltaOmp(const TX *x, const TY *y, size_t N, TA a=TA()) {
   ASSERT(x && y);
   #pragma omp parallel for schedule(auto) reduction(+:a)
   for (size_t i=0; i<N; ++i)
     a += TA(x[i] - y[i]) * TA(x[i] - y[i]);
   return a;
 }
-
 template <class TX, class TY, class TA=TX>
-inline TA l2NormOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
-  return l2NormOmp(x.data(), y.data(), x.size(), a);
+inline TA l2NormDeltaOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
+  return l2NormDeltaOmp(x.data(), y.data(), x.size(), a);
 }
-template <class TX, class TY, class TA=TX>
-inline TA l2NormOmp(const vector<TX>& x, const vector<TY>& y, size_t i, size_t N, TA a=TA()) {
-  return l2NormOmp(x.data()+i, y.data()+i, N, a);
+#endif
+
+
+
+
+// L2-NORM DELTA AT
+// ----------------
+
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l2NormDeltaAt(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()) {
+  ASSERT(x && y && is);
+  for (size_t l=0; l<IS; ++l) {
+    TI i = is[l];
+    a += TA(x[i] - y[i]) * TA(x[i] - y[i]);
+  }
+  return a;
+}
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l2NormDeltaAt(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
+  return l2NormDeltaAt(x.data(), y.data(), is.data(), is.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l2NormOmp(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()) {
+  ASSERT(x && y && is);
+  #pragma omp parallel for schedule(auto) reduction(+:a)
+  for (size_t l=0; l<IS; ++l) {
+    TI i = is[l];
+    a += TA(x[i] - y[i]) * TA(x[i] - y[i]);
+  }
+  return a;
+}
+template <class TX, class TY, class TI, class TA=TX>
+inline TA l2NormOmp(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
+  return l2NormOmp(x.data(), y.data(), is.data(), is.size(), a);
 }
 #endif
 
@@ -411,28 +580,9 @@ inline TA liNorm(const TX *x, size_t N, TA a=TA()) {
     a = max(a, TA(abs(x[i])));
   return a;
 }
-
 template <class TX, class TA=TX>
 inline TA liNorm(const vector<TX>& x, TA a=TA()) {
   return liNorm(x.data(), x.size(), a);
-}
-
-
-template <class TX, class TY, class TA=TX>
-inline TA liNorm(const TX *x, const TY *y, size_t N, TA a=TA()) {
-  ASSERT(x && y);
-  for (size_t i=0; i<N; ++i)
-    a = max(a, TA(abs(x[i] - y[i])));
-  return a;
-}
-
-template <class TX, class TY, class TA=TX>
-inline TA liNorm(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
-  return liNorm(x.data(), y.data(), x.size(), a);
-}
-template <class TX, class TY, class TA=TX>
-inline TA liNorm(const vector<TX>& x, const vector<TY>& y, size_t i, size_t N, TA a=TA()) {
-  return liNorm(x.data()+i, y.data()+i, N, a);
 }
 
 
@@ -445,28 +595,80 @@ inline TA liNormOmp(const TX *x, size_t N, TA a=TA()) {
     a = max(a, TA(abs(x[i])));
   return a;
 }
-
 template <class TX, class TA=TX>
 inline TA liNormOmp(const vector<TX>& x, TA a=TA()) {
   return liNormOmp(x.data(), x.size(), a);
 }
+#endif
 
+
+
+
+// LI-NORM DELTA
+// -------------
 
 template <class TX, class TY, class TA=TX>
-inline TA liNormOmp(const TX *x, const TY *y, size_t N, TA a=TA()) {
+inline TA liNormDelta(const TX *x, const TY *y, size_t N, TA a=TA()) {
+  ASSERT(x && y);
+  for (size_t i=0; i<N; ++i)
+    a = max(a, TA(abs(x[i] - y[i])));
+  return a;
+}
+template <class TX, class TY, class TA=TX>
+inline TA liNormDelta(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
+  return liNormDelta(x.data(), y.data(), x.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TY, class TA=TX>
+inline TA liNormDeltaOmp(const TX *x, const TY *y, size_t N, TA a=TA()) {
   ASSERT(x && y);
   #pragma omp parallel for schedule(auto) reduction(max:a)
   for (size_t i=0; i<N; ++i)
     a = max(a, TA(abs(x[i] - y[i])));
   return a;
 }
-
 template <class TX, class TY, class TA=TX>
-inline TA liNormOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
-  return liNormOmp(x.data(), y.data(), x.size(), a);
+inline TA liNormDeltaOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
+  return liNormDeltaOmp(x.data(), y.data(), x.size(), a);
 }
-template <class TX, class TY, class TA=TX>
-inline TA liNormOmp(const vector<TX>& x, const vector<TY>& y, size_t i, size_t N, TA a=TA()) {
-  return liNormOmp(x.data()+i, y.data()+i, N, a);
+#endif
+
+
+
+
+// LI-NORM DELTA AT
+// ----------------
+
+template <class TX, class TY, class TI, class TA=TX>
+inline TA liNormDeltaAt(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()) {
+  ASSERT(x && y && is);
+  for (size_t l=0; l<IS; ++l) {
+    TI i = is[l];
+    a = max(a, TA(abs(x[i] - y[i])));
+  }
+  return a;
+}
+template <class TX, class TY, class TI, class TA=TX>
+inline TA liNormDeltaAt(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
+  return liNormDeltaAt(x.data(), y.data(), is.data(), is.size(), a);
+}
+
+
+#ifdef OPENMP
+template <class TX, class TY, class TI, class TA=TX>
+inline TA liNormOmp(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()) {
+  ASSERT(x && y && is);
+  #pragma omp parallel for schedule(auto) reduction(max:a)
+  for (size_t l=0; l<IS; ++l) {
+    TI i = is[l];
+    a = max(a, TA(abs(x[i] - y[i])));
+  }
+  return a;
+}
+template <class TX, class TY, class TI, class TA=TX>
+inline TA liNormOmp(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
+  return liNormOmp(x.data(), y.data(), is.data(), is.size(), a);
 }
 #endif

@@ -1,9 +1,5 @@
 #pragma once
-#include <cstdint>
-#include <algorithm>
-#include <vector>
 #include <omp.h>
-#include "_debug.hxx"
 
 
 

@@ -68,7 +68,18 @@ using std::cout;
     return u<span()? eto[u].values() : enone.values(); \
   } \
   inline auto edges(K u) const noexcept { \
-    return u<span()? eto[u].pairs()  : enone.pairs(); \
+    return u<span()? eto[u].entries()  : enone.entries(); \
+  }
+
+#define GRAPH_EDGE_AT(K, V, E, eto, enone) \
+  inline auto edgeKeyAt(K u, K i) const noexcept { \
+    return u<span()? eto[u].keyAt(i)   : enone.keyAt(i); \
+  } \
+  inline auto edgeValueAt(K u, K i) const noexcept { \
+    return u<span()? eto[u].valueAt(i) : enone.valueAt(i); \
+  } \
+  inline auto edgeAt(K u, K i) const noexcept { \
+    return u<span()? eto[u].entryAt(i) : enone.entryAt(i); \
   }
 
 #define GRAPH_INEDGES(K, V, E, efrom, enone) \
@@ -79,7 +90,7 @@ using std::cout;
     return v<span()? efrom[v].values() : enone.values(); \
   } \
   inline auto inEdges(K v) const noexcept { \
-    return v<span()? efrom[v].pairs()  : enone.pairs(); \
+    return v<span()? efrom[v].entries()  : enone.entries(); \
   }
 
 #define GRAPH_INEDGES_SCAN(K, V, E, eto) \
@@ -488,6 +499,7 @@ class DiGraph {
   public:
   GRAPH_VERTICES(K, V, E, vexists, vvalues)
   GRAPH_EDGES(K, V, E, eto, enone)
+  GRAPH_EDGE_AT(K, V, E, eto, enone)
   GRAPH_INEDGES(K, V, E, efrom, enone)
   GRAPH_FOREACH_VERTEX(K, V, E, vexists, vvalues)
   GRAPH_FOREACH_EDGE(K, V, E, eto)
@@ -549,6 +561,7 @@ class OutDiGraph {
   public:
   GRAPH_VERTICES(K, V, E, vexists, vvalues)
   GRAPH_EDGES(K, V, E, eto, enone)
+  GRAPH_EDGE_AT(K, V, E, eto, enone)
   GRAPH_INEDGES_SCAN(K, V, E, eto)
   GRAPH_FOREACH_VERTEX(K, V, E, vexists, vvalues)
   GRAPH_FOREACH_EDGE(K, V, E, eto)

@@ -50,6 +50,19 @@ using std::lower_bound;
 #endif
 
 
+#ifndef BITSET_AT
+#define BITSET_AT(K, V, pairs) \
+  inline       auto& operator[](size_t i)       noexcept { return pairs[i]; } \
+  inline const auto& operator[](size_t i) const noexcept { return pairs[i]; } \
+  inline       auto&    entryAt(size_t i)       noexcept { return pairs[i]; } \
+  inline const auto&    entryAt(size_t i) const noexcept { return pairs[i]; } \
+  inline          K&      keyAt(size_t i)       noexcept { return pairs[i].first; } \
+  inline const    K&      keyAt(size_t i) const noexcept { return pairs[i].first; } \
+  inline          V&    valueAt(size_t i)       noexcept { return pairs[i].second; } \
+  inline const    V&    valueAt(size_t i) const noexcept { return pairs[i].second; }
+#endif
+
+
 #ifndef BITSET_FCOMPARE
 #define BITSET_FCOMPARE(K, V, fn, op) \
   auto fn = [](const auto& p, const auto& q) { return p.first op q.first; };
@@ -92,7 +105,7 @@ using std::lower_bound;
   template <class F> \
   inline void forEachValue(F fn) const { for (const auto& p : pairs) fn(p.second); } \
   template <class F> \
-  inline void forEachEntru(F fn) const { for (const auto& p : pairs) fn(p); } \
+  inline void forEachEntry(F fn) const { for (const auto& p : pairs) fn(p); } \
   template <class F> \
   inline void forEach(F fn)      const { for (const auto& p : pairs) fn(p.first, p.second); }
 #endif
@@ -158,6 +171,7 @@ class LazyBitset {
   BITSET_TYPES(K, V, pairs)
   BITSET_ITERATOR(K, V, pairs)
   BITSET_SIZE(K, V, pairs)
+  BITSET_AT(K, V, pairs)
 
   // Find operations.
   protected:
