@@ -174,16 +174,8 @@ void runExperiment(const G& x) {
   int retries = 5;
   vector<K> *init = nullptr;
   double M = edgeWeightOmp(x)/2;
-  // Result logging format only for static results (skip parsing).
-  auto blog = [&](const auto& ans, const char *technique) {
-    LOG(
-      "{%03d threads} -> {%09.1f/%09.1fms, %04d iters, %03d passes, %01.9f modularity} %s\n",
-      MAX_THREADS, ans.preprocessingTime, ans.time, ans.iterations, ans.passes, getModularity(x, ans, M), technique
-    );
-  };
   // Get community memberships on original graph (static).
-  auto b0 = louvainStaticOmp(x, init, {5});
-  blog(b0, "louvainStaticOmp");
+  auto b0 = louvainStaticOmp(x, init);
   // Get community memberships on updated graph (dynamic).
   runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int epoch) {
     double M = edgeWeightOmp(y)/2;
