@@ -801,6 +801,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
   int    T = omp_get_max_threads();
   vector<K> vcom(S), a(S);
   vector<W> vtot(S), ctot(S);
+  vector2d<K> comv(S);
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
   louvainAllocateHashtablesW(vcs, vcout, S);
@@ -808,7 +809,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
     double Q0 = modularityOmp(x, M, R);
-    G y = duplicate(x);
+    G y = duplicate(x), z; z.respan(S);
     fillValueOmpU(vcom, K());
     fillValueOmpU(vtot, W());
     fillValueOmpU(ctot, W());
@@ -825,7 +826,11 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
         l += m; ++p;
         if (m<=1 || p>=P) { louvainLookupCommunitiesOmpW(a, vcom); break; }
         // K N0 = y.order();
-        y = louvainAggregateOmp(vcs, vcout, y, vcom);
+        comv.clear(); comv.resize(y.span());
+        louvainCommunityVerticesOmpW(comv, y, vcom);
+        z.clear(); z.respan(y.span());
+        louvainAggregateOmpW(z, vcs, vcout, y, vcom, comv);
+        y = move(z);
         // K N1 = y.order();
         // if (N1==N0) break;
         louvainLookupCommunitiesOmpW(a, vcom);
