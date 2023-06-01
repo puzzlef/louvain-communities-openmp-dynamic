@@ -30,13 +30,13 @@ struct LouvainOptions {
   int    repeat;
   double resolution;
   double tolerance;
-  double passTolerance;
-  double toleranceDeclineFactor;
+  double aggregationTolerance;
+  double toleranceDecline;
   int    maxIterations;
   int    maxPasses;
 
-  LouvainOptions(int repeat=1, double resolution=1, double tolerance=1e-2, double passTolerance=0, double toleranceDeclineFactor=10, int maxIterations=20, int maxPasses=20) :
-  repeat(repeat), resolution(resolution), tolerance(tolerance), passTolerance(passTolerance), toleranceDeclineFactor(toleranceDeclineFactor), maxIterations(maxIterations), maxPasses(maxPasses) {}
+  LouvainOptions(int repeat=1, double resolution=1, double tolerance=1e-2, double aggregationTolerance=0.8, double toleranceDecline=100, int maxIterations=20, int maxPasses=10) :
+  repeat(repeat), resolution(resolution), tolerance(tolerance), aggregationTolerance(aggregationTolerance), toleranceDecline(toleranceDecline), maxIterations(maxIterations), maxPasses(maxPasses) {}
 };
 
 // Weight to be using in hashtable.
@@ -219,6 +219,63 @@ inline void louvainInitializeFromOmpW(vector<K>& vcom, vector<W>& ctot, const G&
 
 // LOUVAIN COMMUNITY VERTICES
 // --------------------------
+
+/**
+ * Find the number of vertices in each community.
+ * @param a number of vertices belonging to each community (updated)
+ * @param x original graph
+ * @param vcom community each vertex belongs to
+ * @returns number of communities
+ */
+template <class G, class K>
+inline size_t louvainCountCommunityVerticesW(K *a, const G& x, const K *vcom) {
+  size_t S = x.span();
+  size_t n = 0;
+  fillValueU(a, S, K());
+  x.forEachVertexKey([&](auto u) {
+    K c = vcom[u];
+    if (a[c]==0) ++n;
+    ++a[c];
+  });
+  return n;
+}
+template <class G, class K>
+inline size_t louvainCountCommunityVerticesW(vector<K>& a, const G& x, const vector<K>& vcom) {
+  return louvainCountCommunityVerticesW(a.data(), x, vcom.data());
+}
+
+
+#ifdef OPENMP
+/**
+ * Find the number of vertices in each community.
+ * @param a number of vertices belonging to each community (updated)
+ * @param x original graph
+ * @param vcom community each vertex belongs to
+ * @returns number of communities
+ */
+template <class G, class K>
+inline size_t louvainCountCommunityVerticesOmpW(K *a, const G& x, const K *vcom) {
+  size_t S = x.span();
+  size_t n = 0;
+  fillValueOmpU(a, S, K());
+  #pragma omp parallel for schedule(auto) reduction(+:n)
+  for (K u=0; u<S; ++u) {
+    if (!x.hasVertex(u)) continue;
+    K c = vcom[u], m = 0;
+    #pragma omp atomic capture
+    { m = a[c]; ++a[c]; }
+    if (m==0) ++n;
+  }
+  return n;
+}
+template <class G, class K>
+inline size_t louvainCountCommunityVerticesOmpW(vector<K>& a, const G& x, const vector<K>& vcom) {
+  return louvainCountCommunityVerticesOmpW(a.data(), x, vcom.data());
+}
+#endif
+
+
+
 
 /**
  * Find the vertices in each community.
@@ -732,17 +789,16 @@ template <class G, class K, class FM, class FA, class FP>
 auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, FA fa, FP fp) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   double R = o.resolution;
-  double D = o.passTolerance;
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0;
   size_t S = x.span();
   double M = edgeWeight(x)/2;
   vector<K> vcom(S), vcs, a(S);
   vector<W> vtot(S), ctot(S), vcout(S);
+  vector<K> comn(S);
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
-    double Q0 = modularity(x, M, R);
     auto   fc = [&](double el, int l) { return el < E; };
     G y; y.respan(S);
     fillValueU(vcom, K());
@@ -761,16 +817,17 @@ auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
         else      louvainLookupCommunitiesU(a, vcom);
         l += m; ++p;
         if (m<=1 || p>=P) break;
-        y = louvainAggregate(vcs, vcout, p<=1? x : y, vcom);
-        double Q = D? modularity(y, M, R) : 0;
-        if (D && Q-Q0<=D) break;
+        const G& g = p<=1? x : y;
+        size_t gn = g.order();
+        size_t yn = louvainCountCommunityVerticesW(comn, g, vcom);
+        if (double(yn)/gn >= o.aggregationTolerance) break;
+        y = louvainAggregate(vcs, vcout, g, vcom);
         fillValueU(vcom, K());
         fillValueU(vtot, W());
         fillValueU(ctot, W());
         louvainVertexWeightsW(vtot, y);
         louvainInitializeW(vcom, ctot, y, vtot);
-        E /= o.toleranceDeclineFactor;
-        Q0 = Q;
+        E /= o.toleranceDecline;
       }
     });
   }, o.repeat);
@@ -782,7 +839,6 @@ template <class G, class K, class FM, class FA, class FP>
 auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, FA fa, FP fp) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   double R = o.resolution;
-  double D = o.passTolerance;
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0;
   size_t S = x.span();
@@ -790,13 +846,13 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
   int    T = omp_get_max_threads();
   vector<K> vcom(S), a(S);
   vector<W> vtot(S), ctot(S);
+  vector<K> comn(S);
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
   louvainAllocateHashtablesW(vcs, vcout, S);
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
-    double Q0 = modularityOmp(x, M, R);
     auto   fc = [&](double el, int l) { return el < E; };
     G y; y.respan(S);
     fillValueOmpU(vcom, K());
@@ -815,16 +871,17 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
         else      louvainLookupCommunitiesOmpU(a, vcom);
         l += m; ++p;
         if (m<=1 || p>=P) break;
-        y = louvainAggregateOmp(vcs, vcout, p<=1? x : y, vcom);
-        double Q = D? modularityOmp(y, M, R) : 0;
-        if (D && Q-Q0<=D) break;
+        const G& g = p<=1? x : y;
+        size_t gn = g.order();
+        size_t yn = louvainCountCommunityVerticesOmpW(comn, g, vcom);
+        if (double(yn)/gn >= o.aggregationTolerance) break;
+        y = louvainAggregateOmp(vcs, vcout, g, vcom);
         fillValueOmpU(vcom, K());
         fillValueOmpU(vtot, W());
         fillValueOmpU(ctot, W());
         louvainVertexWeightsOmpW(vtot, y);
         louvainInitializeOmpW(vcom, ctot, y, vtot);
-        E /= o.toleranceDeclineFactor;
-        Q0 = Q;
+        E /= o.toleranceDecline;
       }
     });
   }, o.repeat);
