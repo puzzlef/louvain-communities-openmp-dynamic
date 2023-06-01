@@ -273,13 +273,13 @@ inline size_t louvainCountCommunityVerticesOmpW(vector<K>& a, const G& x, const 
 /**
  * Find the vertices in each community.
  * @param co csr offsets for vertices belonging to each community (updated)
- * @param ce csr data vertices belonging to each community (updated)
  * @param cn number of vertices in each community (updated)
+ * @param ce csr data vertices belonging to each community (updated)
  * @param x original graph
  * @param vcom community each vertex belongs to
  */
 template <class G, class K>
-inline void louvainCommunityVerticesW(vector<K>& co, vector<K>& ce, vector<K>& cn, const G& x, const vector<K>& vcom) {
+inline void louvainCommunityVerticesW(vector<K>& co, vector<K>& cn, vector<K>& ce, const G& x, const vector<K>& vcom) {
   size_t S = x.span();
   co[S] = exclusiveScanW(co, cn);
   fillValueU(cn, K());
@@ -293,7 +293,7 @@ inline void louvainCommunityVerticesW(vector<K>& co, vector<K>& ce, vector<K>& c
 
 #ifdef OPENMP
 template <class G, class K>
-inline void louvainCommunityVerticesOmpW(vector<K>& co, vector<K>& ce, vector<K>& cn, vector<K>& bufk, const G& x, const vector<K>& vcom) {
+inline void louvainCommunityVerticesOmpW(vector<K>& co, vector<K>& cn, vector<K>& ce, vector<K>& bufk, const G& x, const vector<K>& vcom) {
   size_t S = x.span();
   co[S] = exclusiveScanOmpW(co, bufk, cn);
   fillValueOmpU(cn, K());
@@ -777,7 +777,7 @@ auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
   double M = edgeWeight(x)/2;
   vector<K> vcom(S), vcs, a(S);
   vector<W> vtot(S), ctot(S), vcout(S);
-  vector<K> co(S+1), ce(S), cn(S);
+  vector<K> co(S+1), cn(S), ce(S);
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
@@ -803,7 +803,7 @@ auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
         size_t gn = g.order();
         size_t yn = louvainCountCommunityVerticesW(cn, g, vcom);
         if (double(yn)/gn >= o.aggregationTolerance) break;
-        louvainCommunityVerticesW(co, ce, cn, g, vcom);
+        louvainCommunityVerticesW(co, cn, ce, g, vcom);
         y = louvainAggregate(vcs, vcout, g, vcom, co, ce);
         fillValueU(vcom, K());
         fillValueU(vtot, W());
@@ -829,7 +829,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
   int    T = omp_get_max_threads();
   vector<K> vcom(S), a(S);
   vector<W> vtot(S), ctot(S);
-  vector<K> co(S+1), ce(S), cn(S);
+  vector<K> co(S+1), cn(S), ce(S);
   vector<K> bufk(T);
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
@@ -859,7 +859,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
         size_t gn = g.order();
         size_t yn = louvainCountCommunityVerticesOmpW(cn, g, vcom);
         if (double(yn)/gn >= o.aggregationTolerance) break;
-        louvainCommunityVerticesOmpW(co, ce, cn, bufk, g, vcom);
+        louvainCommunityVerticesOmpW(co, cn, ce, bufk, g, vcom);
         y = louvainAggregateOmp(vcs, vcout, g, vcom, co, ce);
         fillValueOmpU(vcom, K());
         fillValueOmpU(vtot, W());
