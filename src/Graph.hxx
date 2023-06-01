@@ -39,6 +39,15 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_CSR_SIZE
+#define GRAPH_VIEW_CSR_SIZE(K, V, E, S, N, M) \
+  inline size_t span()  const noexcept { return S; } \
+  inline size_t order() const noexcept { return N; } \
+  inline size_t size()  const noexcept { return M; } \
+  inline bool   empty() const noexcept { return N==0; }
+#endif
+
+
 #ifndef GRAPH_DIRECTED
 #define GRAPH_DIRECTED(K, V, E, de) \
   inline bool directed() const noexcept { return de; }
@@ -114,6 +123,50 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_CSR_VERTICES
+#define GRAPH_VIEW_CSR_VERTICES(K, V, E) \
+  inline auto vertexKeys() const noexcept { \
+    return rangeIterable(K()); \
+  } \
+  inline auto vertexValues() const noexcept { \
+    return rangeIterable(V(), V()); \
+  } \
+  inline auto vertices() const noexcept { \
+    return pairIterable(vertexKeys(), vertexValues()); \
+  }
+
+#define GRAPH_VIEW_CSR_EDGES(K, V, E) \
+  inline auto edgeKeys(K u) const noexcept { \
+    return rangeIterable(K()); \
+  } \
+  inline auto edgeValues(K u) const noexcept { \
+    return rangeIterable(E(), E()); \
+  } \
+  inline auto edges(K u) const noexcept { \
+    return pairIterable(edgeKeys(), edgeValues()); \
+  }
+
+#define GRAPH_VIEW_CSR_EDGE_AT(K, V, E, xo, xn, xd, xe, xw) \
+  inline auto edgeKeyAt(K u, K i) const noexcept { \
+    if (!hasVertex(u) || i>=xn[u]) return K(); \
+    return xe[xo[u] + i]; \
+  } \
+  inline auto edgeValueAt(K u, K i) const noexcept { \
+    if (!sizeof(E) || !hasVertex(u) || i>=xn[u]) return E(); \
+    return xw[xo[u] + i]; \
+  } \
+  inline auto edgeAt(K u, K i) const noexcept { \
+    if (!hasVertex(u) || i>=xn[u]) return make_pair(K(), V()); \
+    return make_pair(xe[xo[u] + i], sizeof(E)? xw[xo[u] + i] : E()); \
+  }
+
+#define GRAPH_VIEW_CSR_INEDGES(K, V, E) \
+  inline auto inEdgeKeys(K v)   const noexcept { return rangeIterable(K()); } \
+  inline auto inEdgeValues(K v) const noexcept { return rangeIterable(E(), E()); } \
+  inline auto inEdges(K v)      const noexcept { return pairIterable(inEdgeKeys(v), inEdgeValues(v)); }
+#endif
+
+
 #ifndef GRAPH_FOREACH_VERTEX
 #define GRAPH_FOREACH_VERTEX(K, V, E, vexists, vvalues) \
   template <class F> \
@@ -178,6 +231,54 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_CSR_FOREACH_VERTEX
+#define GRAPH_VIEW_CSR_FOREACH_VERTEX(K, V, E, xo, xn, xd, xe, xw) \
+  template <class F> \
+  inline void forEachVertexKey(F fn) const noexcept { \
+    for (K u=0; u<span(); ++u) \
+      if (hasVertex(u)) fn(u); \
+  } \
+  template <class F> \
+  inline void forEachVertexValue(F fn) const noexcept { \
+    for (K u=0; u<span(); ++u) \
+      if (hasVertex(u)) fn(sizeof(V)? xd[u] : V()); \
+  } \
+  template <class F> \
+  inline void forEachVertex(F fn) const noexcept { \
+    for (K u=0; u<span(); ++u) \
+      if (hasVertex(u)) fn(u, sizeof(V)? xd[u] : V()); \
+  }
+
+#define GRAPH_VIEW_CSR_FOREACH_EDGE(K, V, E, xo, xn, xd, xe, xw) \
+  template <class F> \
+  inline void forEachEdgeKey(K u, F fn) const noexcept { \
+    if (!hasVertex(u)) return; \
+    for (size_t i=xo[u], I=i+xn[u]; i<I; ++i) \
+      fn(xe[i]); \
+  } \
+  template <class F> \
+  inline void forEachEdgeValue(K u, F fn) const noexcept { \
+    if (!hasVertex(u)) return; \
+    for (size_t i=xo[u], I=i+xn[u]; i<I; ++i) \
+      fn(sizeof(E)? xw[i] : E()); \
+  } \
+  template <class F> \
+  inline void forEachEdge(K u, F fn) const noexcept { \
+    if (!hasVertex(u)) return; \
+    for (size_t i=xo[u], I=i+xn[u]; i<I; ++i) \
+      fn(xe[i], sizeof(E)? xw[i] : E()); \
+  }
+
+#define GRAPH_VIEW_CSR_FOREACH_INEDGE(K, V, E) \
+  template <class F> \
+  inline void forEachInEdgeKey(K u, F fn)   const noexcept {} \
+  template <class F> \
+  inline void forEachInEdgeValue(K u, F fn) const noexcept {} \
+  template <class F> \
+  inline void forEachInEdge(K u, F fn)      const noexcept {}
+#endif
+
+
 #ifndef GRAPH_HAS
 #define GRAPH_HAS(K, V, E, vexists, eto) \
   inline bool hasVertex(K u) const noexcept { \
@@ -185,6 +286,20 @@ using std::cout;
   } \
   inline bool hasEdge(K u, K v) const noexcept { \
     return u<span() && eto[u].has(v); \
+  }
+#endif
+
+
+#ifndef GRAPH_VIEW_CSR_HAS
+#define GRAPH_VIEW_CSR_HAS(K, V, E, xo, xn, xd, xe, xw) \
+  inline bool hasVertex(K u) const noexcept { \
+    return u<span() && xn[u]>=K(); \
+  } \
+  inline bool hasEdge(K u, K v) const noexcept { \
+    if (!hasVertex(u)) return false; \
+    for (size_t i=xo[u], I=i+xn[u]; i<I; ++i) \
+      if (xe[i]==v) return true; \
+    return false; \
   }
 #endif
 
@@ -207,6 +322,17 @@ using std::cout;
 #define GRAPH_DEGREES_SCAN(K, V, E, eto) \
   GRAPH_XDEGREE(K, V, E, degree, eto) \
   GRAPH_INDEGREE_SCAN(K, V, E, eto)
+#endif
+
+
+#ifndef GRAPH_VIEW_CSR_DEGREES
+#define GRAPH_VIEW_CSR_DEGREES(K, V, E, xo, xn, xd, xe, xw) \
+  inline K degree(K u) const noexcept { \
+    return u<span() && xn[u]>K()? xn[u] : 0; \
+  } \
+  inline K inDegree(K v) const noexcept { \
+    return K(-1); \
+  }
 #endif
 
 
@@ -253,6 +379,38 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_CSR_VALUES
+#define GRAPH_VIEW_CSR_VERTEX_VALUE(K, V, E, xo, xn, xd, xe, xw) \
+  inline V vertexValue(K u) const noexcept { \
+    return sizeof(V) && u<span()? xd[u] : V(); \
+  }
+
+#define GRAPH_VIEW_CSR_EDGE_VALUE(K, V, E, xo, xn, xd, xe, xw) \
+  inline E edgeValue(K u, K v) const noexcept { \
+    if (!sizeof(E) || !hasVertex(u)) return E(); \
+    for (size_t i=xo[u], I=i+xn[u]; i<I; ++i) \
+      if (xe[i]==v) return xw[i]; \
+    return E(); \
+  }
+
+#define GRAPH_VIEW_CSR_VALUES(K, V, E, xo, xn, xd, xe, xw) \
+  GRAPH_VIEW_CSR_VERTEX_VALUE(K, V, E, xo, xn, xd, xe, xw) \
+  GRAPH_VIEW_CSR_EDGE_VALUE(K, V, E, xo, xn, xd, xe, xw)
+
+#define GRAPH_VIEW_SET_VERTEX_VALUE(K, V, E) \
+  inline void setVertexValue(K u, V d) noexcept {}
+
+#define GRAPH_VIEW_SET_EDGE_VALUE(K, V, E) \
+  template <class FT> \
+  inline void setEdgeValue(K u, K v, E w, FT ft) noexcept {} \
+  inline void setEdgeValue(K u, K v, E w) noexcept {}
+
+#define GRAPH_VIEW_SET_VALUES(K, V, E) \
+  GRAPH_VIEW_SET_VERTEX_VALUE(K, V, E) \
+  GRAPH_VIEW_SET_EDGE_VALUE(K, V, E)
+#endif
+
+
 #ifndef GRAPH_RESERVE
 #define GRAPH_RESERVE_EDGES_X(K, V, E, u, deg, e0, e1) \
   inline void reserveEdges(K u, size_t deg) { \
@@ -283,6 +441,15 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_RESERVE
+#define GRAPH_VIEW_RESERVE_EDGES(K, V, E) \
+  inline void reserveEdges(K u, size_t deg) {}
+
+#define GRAPH_VIEW_RESERVE(K, V, E) \
+  inline void reserve(size_t n, size_t deg=0) {}
+#endif
+
+
 #ifndef GRAPH_UPDATE
 #define GRAPH_UPDATE_EDGES_X(K, V, E, u, buf, e0, e1) \
   inline void updateEdges(K u, vector<pair<K, E>> *buf=nullptr) { \
@@ -307,6 +474,15 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_UPDATE
+#define GRAPH_VIEW_UPDATE_EDGES(K, V, E) \
+  inline void updateEdges(K u, vector<pair<K, E>> *buf=nullptr) {}
+
+#define GRAPH_VIEW_UPDATE(K, V, E) \
+  inline void update() {}
+#endif
+
+
 #ifndef GRAPH_RESPAN
 #define GRAPH_RESPAN_X(K, V, E, vexists, vvalues, n, e0, e1) \
   inline void respan(size_t n) { \
@@ -320,6 +496,12 @@ using std::cout;
   GRAPH_RESPAN_X(K, V, E, vexists, vvalues, n, eto.resize(n), efrom.resize(n))
 #define GRAPH_RESPAN_SCAN(K, V, E, vexists, vvalues, eto) \
   GRAPH_RESPAN_X(K, V, E, vexists, vvalues, n, eto.resize(n), false)
+#endif
+
+
+#ifndef GRAPH_VIEW_RESPAN
+#define GRAPH_VIEW_RESPAN(K, V, E) \
+  inline void respan(size_t n) {}
 #endif
 
 
@@ -340,6 +522,12 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_CLEAR
+#define GRAPH_VIEW_CLEAR(K, V, E) \
+  inline void clear() noexcept {}
+#endif
+
+
 #ifndef GRAPH_ADD_VERTEX
 #define GRAPH_ADD_VERTEX(K, V, E, vexists, vvalues) \
   inline void addVertex(K u, V d=V()) { \
@@ -348,6 +536,12 @@ using std::cout;
     vexists[u] = true; \
     vvalues[u] = d; \
   }
+#endif
+
+
+#ifndef GRAPH_VIEW_ADD_VERTEX
+#define GRAPH_VIEW_ADD_VERTEX(K, V, E) \
+  inline void addVertex(K u, V d=V()) {}
 #endif
 
 
@@ -371,6 +565,14 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_ADD_EDGE
+#define GRAPH_VIEW_ADD_EDGE(K, V, E) \
+  template <class FT> \
+  inline void addEdge(K u, K v, E w, FT ft) {} \
+  inline void addEdge(K u, K v, E w=E()) {}
+#endif
+
+
 #ifndef GRAPH_REMOVE_EDGE
 #define GRAPH_REMOVE_EDGE_X(K, V, E, u, v, ft, e0, e1) \
   template <class FT> \
@@ -388,6 +590,14 @@ using std::cout;
   GRAPH_REMOVE_EDGE_X(K, V, E, u, v, ft, if (ft(u)) eto[u].remove(v), if (ft(v)) efrom[v].remove(u))
 #define GRAPH_REMOVE_EDGE_SCAN(K, V, E, eto) \
   GRAPH_REMOVE_EDGE_X(K, V, E, u, v, ft, if (ft(u)) eto[u].remove(v), false)
+#endif
+
+
+#ifndef GRAPH_VIEW_REMOVE_EDGE
+#define GRAPH_VIEW_REMOVE_EDGE(K, V, E) \
+  template <class FT> \
+  inline void removeEdge(K u, K v, FT ft) {} \
+  inline void removeEdge(K u, K v) {}
 #endif
 
 
@@ -417,6 +627,14 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_REMOVE_EDGES
+#define GRAPH_VIEW_REMOVE_EDGES(K, V, E) \
+  template <class FT> \
+  inline void removeEdges(K u, FT ft) {} \
+  inline void removeEdges(K u) {}
+#endif
+
+
 #ifndef GRAPH_REMOVE_INEDGES
 #define GRAPH_REMOVE_INEDGES(K, V, E, eto, efrom) \
   template <class FT> \
@@ -443,6 +661,14 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_REMOVE_INEDGES
+#define GRAPH_VIEW_REMOVE_INEDGES(K, V, E) \
+  template <class FT> \
+  inline void removeInEdges(K v, FT ft) {} \
+  inline void removeInEdges(K v) {}
+#endif
+
+
 #ifndef GRAPH_REMOVE_VERTEX
 #define GRAPH_REMOVE_VERTEX(K, V, E, vexists, vvalues) \
   template <class FT> \
@@ -460,12 +686,29 @@ using std::cout;
 #endif
 
 
+#ifndef GRAPH_VIEW_REMOVE_VERTEX
+#define GRAPH_VIEW_REMOVE_VERTEX(K, V, E) \
+  template <class FT> \
+  inline void removeVertex(K u, FT ft) {} \
+  inline void removeVertex(K u) {}
+#endif
+
+
 #ifndef GRAPH_WRITE
 #define GRAPH_WRITE(K, V, E, Bitset, Graph) \
   template <class K, class V, class E, tclass2 Bitset> \
   inline void write(ostream& a, const Graph<K, V, E, Bitset>& x, bool detailed=false) { writeGraph(a, x, detailed); } \
   template <class K, class V, class E, tclass2 Bitset> \
   inline ostream& operator<<(ostream& a, const Graph<K, V, E, Bitset>& x) { write(a, x); return a; }
+#endif
+
+
+#ifndef GRAPH_VIEW_WRITE
+#define GRAPH_VIEW_WRITE(K, V, E, Graph) \
+  template <class K, class V, class E> \
+  inline void write(ostream& a, const Graph<K, V, E>& x, bool detailed=false) { writeGraph(a, x, detailed); } \
+  template <class K, class V, class E> \
+  inline ostream& operator<<(ostream& a, const Graph<K, V, E>& x) { write(a, x); return a; }
 #endif
 
 
@@ -525,7 +768,7 @@ class DiGraph {
   GRAPH_REMOVE_EDGE(K, V, E, eto, efrom)
   GRAPH_REMOVE_EDGES(K, V, E, eto, efrom)
   GRAPH_REMOVE_INEDGES(K, V, E, eto, efrom)
-  GRAPH_REMOVE_VERTEX(K, V, E, ists, vvalues)
+  GRAPH_REMOVE_VERTEX(K, V, E, vexists, vvalues)
 };
 
 template <class K=uint32_t, class V=NONE, class E=NONE>
@@ -674,6 +917,68 @@ class Graph : public OutDiGraph<K, V, E, Bitset> {
 
 template <class K=uint32_t, class V=NONE, class E=NONE>
 using LazyGraph = Graph<K, V, E, LazyBitset>;
+
+
+
+
+// OUT DI-GRAPH VIEW CSR
+// ---------------------
+
+template <class K=uint32_t, class V=NONE, class E=NONE>
+class OutDiGraphViewCsr {
+  // Data.
+  protected:
+  size_t S = 0, N = 0, M = 0;
+  const K *xo, *xn, *xe;
+  const V *xd;
+  const E *xw;
+
+  // Types.
+  public:
+  GRAPH_TYPES(K, V, E)
+
+  // Property operations.
+  public:
+  GRAPH_VIEW_CSR_SIZE(K, V, E, S, N, M)
+  GRAPH_DIRECTED(K, V, E, true)
+
+  // Scan operations.
+  public:
+  GRAPH_VIEW_CSR_VERTICES(K, V, E)
+  GRAPH_VIEW_CSR_EDGES(K, V, E)
+  GRAPH_VIEW_CSR_EDGE_AT(K, V, E, xo, xn, xd, xe, xw)
+  GRAPH_VIEW_CSR_INEDGES(K, V, E)
+  GRAPH_VIEW_CSR_FOREACH_VERTEX(K, V, E, xo, xn, xd, xe, xw)
+  GRAPH_VIEW_CSR_FOREACH_EDGE(K, V, E, xo, xn, xd, xe, xw)
+  GRAPH_VIEW_CSR_FOREACH_INEDGE(K, V, E)
+
+  // Access operations.
+  public:
+  GRAPH_VIEW_CSR_HAS(K, V, E, xo, xn, xd, xe, xw)
+  GRAPH_VIEW_CSR_DEGREES(K, V, E, xo, xn, xd, xe, xw)
+  GRAPH_VIEW_CSR_VALUES(K, V, E, xo, xn, xd, xe, xw)
+  GRAPH_VIEW_SET_VALUES(K, V, E)
+
+  // Update operations.
+  public:
+  GRAPH_VIEW_RESERVE_EDGES(K, V, E)
+  GRAPH_VIEW_RESERVE(K, V, E)
+  GRAPH_VIEW_UPDATE_EDGES(K, V, E)
+  GRAPH_VIEW_UPDATE(K, V, E)
+  GRAPH_VIEW_RESPAN(K, V, E)
+  GRAPH_VIEW_CLEAR(K, V, E)
+  GRAPH_VIEW_ADD_VERTEX(K, V, E)
+  GRAPH_VIEW_ADD_EDGE(K, V, E)
+  GRAPH_VIEW_REMOVE_EDGE(K, V, E)
+  GRAPH_VIEW_REMOVE_EDGES(K, V, E)
+  GRAPH_VIEW_REMOVE_INEDGES(K, V, E)
+  GRAPH_VIEW_REMOVE_VERTEX(K, V, E)
+
+  // Construction operations.
+  public:
+  OutDiGraphViewCsr(const K* xo, const K* xn, const V* xd, const K* xe, const E* xw, size_t S, size_t N, size_t M)
+  : S(S), N(N), M(M), xo(xo), xn(xn), xd(xd), xe(xe), xw(xw) {}
+};
 
 
 
