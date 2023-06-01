@@ -551,10 +551,12 @@ inline void louvainAggregateW(G& a, vector<K>& vcs, vector<W>& vcout, const G& x
       K u = ce[oc+i];
       louvainScanCommunitiesW<true>(vcs, vcout, x, u, vcom);
     }
+    // a.reserveEdges(c, vcs.size());
     a.addVertex(c);
     for (auto d : vcs)
       a.addEdge(c, d, vcout[d]);
   }
+  // Aggregated graph has unique edges, so an update may not be necessary.
   a.update();
 }
 
@@ -574,9 +576,11 @@ inline void louvainAggregateOmpW(G& a, vector<vector<K>*>& vcs, vector<vector<W>
       K u = ce[oc+i];
       louvainScanCommunitiesW<true>(*vcs[t], *vcout[t], x, u, vcom);
     }
+    // a.reserveEdges(c, (*vcs[t]).size());
     for (auto d : *vcs[t])
       a.addEdge(c, d, (*vcout[t])[d]);
   }
+  // Aggregated graph has unique edges, so an update may not be necessary.
   updateOmpU(a);
 }
 #endif

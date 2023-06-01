@@ -525,7 +525,7 @@ class DiGraph {
   GRAPH_REMOVE_EDGE(K, V, E, eto, efrom)
   GRAPH_REMOVE_EDGES(K, V, E, eto, efrom)
   GRAPH_REMOVE_INEDGES(K, V, E, eto, efrom)
-  GRAPH_REMOVE_VERTEX(K, V, E, ists, vvalues)
+  GRAPH_REMOVE_VERTEX(K, V, E, vexists, vvalues)
 };
 
 template <class K=uint32_t, class V=NONE, class E=NONE>
