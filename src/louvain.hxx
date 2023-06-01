@@ -744,24 +744,24 @@ auto louvainSeq(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
     double E  = o.tolerance;
     double Q0 = modularity(x, M, R);
     auto   fc = [&](double el, int l) { return el < E; };
-    G y = duplicate(x);
+    G y; y.respan(S);
     fillValueU(vcom, K());
     fillValueU(vtot, W());
     fillValueU(ctot, W());
     mark([&]() {
       tm = measureDuration(fm);
-      louvainVertexWeightsW(vtot, y);
+      louvainVertexWeightsW(vtot, x);
       if (q) louvainInitializeFromW(vcom, ctot, x, vtot, *q);
-      else   louvainInitializeW(vcom, ctot, y, vtot);
+      else   louvainInitializeW(vcom, ctot, x, vtot);
       for (l=0, p=0; M>0 && p<P;) {
         int m = 0;
-        if (p==0) m = louvainMoveW(vcom, ctot, vcs, vcout, y, vtot, M, R, L, fc, fa, fp);
+        if (p==0) m = louvainMoveW(vcom, ctot, vcs, vcout, x, vtot, M, R, L, fc, fa, fp);
         else      m = louvainMoveW(vcom, ctot, vcs, vcout, y, vtot, M, R, L, fc);
         if (p==0) copyValuesW(a, vcom);
         else      louvainLookupCommunitiesU(a, vcom);
         l += m; ++p;
         if (m<=1 || p>=P) break;
-        y = louvainAggregate(vcs, vcout, y, vcom);
+        y = louvainAggregate(vcs, vcout, p<=1? x : y, vcom);
         double Q = D? modularity(y, M, R) : 0;
         if (D && Q-Q0<=D) break;
         fillValueU(vcom, K());
@@ -798,7 +798,7 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
     double E  = o.tolerance;
     double Q0 = modularityOmp(x, M, R);
     auto   fc = [&](double el, int l) { return el < E; };
-    G y = duplicate(x);
+    G y; y.respan(S);
     fillValueOmpU(vcom, K());
     fillValueOmpU(vtot, W());
     fillValueOmpU(ctot, W());
@@ -809,13 +809,13 @@ auto louvainOmp(const G& x, const vector<K>* q, const LouvainOptions& o, FM fm, 
       else   louvainInitializeOmpW(vcom, ctot, x, vtot);
       for (l=0, p=0; M>0 && p<P;) {
         int m = 0;
-        if (p==0) m = louvainMoveOmpW(vcom, ctot, vcs, vcout, y, vtot, M, R, L, fc, fa, fp);
+        if (p==0) m = louvainMoveOmpW(vcom, ctot, vcs, vcout, x, vtot, M, R, L, fc, fa, fp);
         else      m = louvainMoveOmpW(vcom, ctot, vcs, vcout, y, vtot, M, R, L, fc);
         if (p==0) copyValuesW(a, vcom);
         else      louvainLookupCommunitiesOmpU(a, vcom);
         l += m; ++p;
         if (m<=1 || p>=P) break;
-        y = louvainAggregateOmp(vcs, vcout, y, vcom);
+        y = louvainAggregateOmp(vcs, vcout, p<=1? x : y, vcom);
         double Q = D? modularityOmp(y, M, R) : 0;
         if (D && Q-Q0<=D) break;
         fillValueOmpU(vcom, K());
