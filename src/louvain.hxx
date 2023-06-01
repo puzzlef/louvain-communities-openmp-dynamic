@@ -599,6 +599,100 @@ inline auto louvainAggregateOmp(vector<vector<K>*>& vcs, vector<vector<W>*>& vco
 
 
 
+/**
+ * Louvain algorithm's community aggregation phase.
+ * @param yo csr offsets for aggregated graph (updated)
+ * @param yn csr degrees for aggregated graph (updated)
+ * @param ye csr edges for aggregated graph (updated)
+ * @param yw csr weights for aggregated graph (updated)
+ * @param vcs communities vertex u is linked to (temporary buffer, updated)
+ * @param vcout total edge weight from vertex u to community C (temporary buffer, updated)
+ * @param x original graph
+ * @param vcom community each vertex belongs to
+ * @param co csr offsets for vertices belonging to each community
+ * @param ce csr data vertices belonging to each community
+ */
+template <class G, class K, class W>
+inline void louvainAggregateCsrW(vector<K>& yo, vector<K>& yn, vector<K>& ye, vector<W>& yw, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom, const vector<K>& co, const vector<K>& ce) {
+  size_t S = x.span();
+  // Obtain offsets for each aggregated vertex, taking into account the
+  // maximum possible number of edges of each community (aggregated vertex).
+  fillValueU(yo, K());
+  fillValueU(yn, K());
+  for (K c=0; c<S; ++c) {
+    K oc = co[c];
+    K nc = co[c+1] - co[c];
+    // Non-existent community?
+    if (nc==0) { yn[c] = -1; continue; }
+    for (K i=0; i<nc; ++i) {
+      K u = ce[oc+i];
+      yo[c] += x.degree(u);
+    }
+  }
+  yo[S] = exclusiveScanW(yo, yo);
+  // Obtain the edges of each aggregated vertex.
+  for (K c=0; c<S; ++c) {
+    K oc = co[c];
+    K nc = co[c+1] - co[c];
+    if (nc==0) continue;
+    louvainClearScanW(vcs, vcout);
+    for (K i=0; i<nc; ++i) {
+      K u = ce[oc+i];
+      louvainScanCommunitiesW<true>(vcs, vcout, x, u, vcom);
+    }
+    for (auto d : vcs) {
+      K i = yn[c]++;
+      ye[yo[c]+i] = d;
+      yw[yo[c]+i] = vcout[d];
+    }
+  }
+}
+
+
+#ifdef OPENMP
+template <class G, class K, class W>
+inline void louvainAggregateCsrOmpW(vector<K>& yo, vector<K>& yn, vector<K>& ye, vector<W>& yw, vector<K>& bufk, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcom, const vector<K>& co, const vector<K>& ce) {
+  size_t S = x.span();
+  // Obtain offsets for each aggregated vertex, taking into account the
+  // maximum possible number of edges of each community (aggregated vertex).
+  fillValueOmpU(yo, K());
+  fillValueOmpU(yn, K());
+  #pragma omp parallel for schedule(auto)
+  for (K c=0; c<S; ++c) {
+    K oc = co[c];
+    K nc = co[c+1] - co[c];
+    // Non-existent community?
+    if (nc==0) { yn[c] = -1; continue; }
+    for (K i=0; i<nc; ++i) {
+      K u = ce[oc+i];
+      yo[c] += x.degree(u);
+    }
+  }
+  yo[S] = exclusiveScanOmpW(yo, bufk, yo);
+  // Obtain the edges of each aggregated vertex.
+  #pragma omp parallel for schedule(auto)
+  for (K c=0; c<S; ++c) {
+    int t = omp_get_thread_num();
+    K oc = co[c];
+    K nc = co[c+1] - co[c];
+    if (nc==0) continue;
+    louvainClearScanW(*vcs[t], *vcout[t]);
+    for (K i=0; i<nc; ++i) {
+      K u = ce[oc+i];
+      louvainScanCommunitiesW<true>(*vcs[t], *vcout[t], x, u, vcom);
+    }
+    for (auto d : *vcs[t]) {
+      K i = yn[c]++;
+      ye[yo[c]+i] = d;
+      yw[yo[c]+i] = (*vcout[t])[d];
+    }
+  }
+}
+#endif
+
+
+
+
 // LOUVAIN AFFECTED VERTICES DELTA-SCREENING
 // -----------------------------------------
 // Using delta-screening approach.
