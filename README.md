@@ -199,8 +199,7 @@ $ DOWNLOAD=0 MAX_THREADS=4 ./mains.sh
 - [From Louvain to Leiden: guaranteeing well-connected communities; V.A. Traag et al. (2019)](https://www.nature.com/articles/s41598-019-41695-z)
 - [CS224W: Machine Learning with Graphs | Louvain Algorithm; Jure Leskovec (2021)](https://www.youtube.com/watch?v=0zuiLBOIcsw)
 - [The University of Florida Sparse Matrix Collection; Timothy A. Davis et al. (2011)](https://doi.org/10.1145/2049662.2049663)
-- [Understanding the Gini Coefficient : Singapore Department of Statistics (DOS)](https://www.youtube.com/watch?v=BwSB__Ugo1s)
-- [Gini coefficient](https://en.wikipedia.org/wiki/Gini_coefficient)
+- [Fetch-and-add using OpenMP atomic operations](https://stackoverflow.com/a/7918281/1413259)
 
 <br>
 <br>

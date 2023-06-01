@@ -5,8 +5,13 @@
 #include <vector>
 #include "_debug.hxx"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 using std::vector;
 using std::abs;
+using std::min;
 using std::max;
 using std::fill;
 
@@ -221,6 +226,38 @@ inline void fillValueOmpU(vector<T>& a, const T& v) {
 }
 inline void fillValueOmpU(vector<bool>& a, const bool& v) {
   fill(a.begin(), a.end(), v);
+}
+#endif
+
+
+
+
+// ADD VALUE
+// ---------
+
+template <class T>
+inline void addValueU(T *a, size_t N, const T& v) {
+  ASSERT(a);
+  for (size_t i=0; i<N; ++i)
+    a[i] += v;
+}
+template <class T>
+inline void addValueU(vector<T>& a, const T& v) {
+  addValueU(a.data(), a.size(), v);
+}
+
+
+#ifdef OPENMP
+template <class T>
+inline void addValueOmpU(T *a, size_t N, const T& v) {
+  ASSERT(a);
+  #pragma omp parallel for schedule(auto)
+  for (size_t i=0; i<N; ++i)
+    a[i] += v;
+}
+template <class T>
+inline void addValueOmpU(vector<T>& a, const T& v) {
+  addValueOmpU(a.data(), a.size(), v);
 }
 #endif
 
@@ -670,5 +707,122 @@ inline TA liNormOmp(const TX *x, const TY *y, const TI *is, size_t IS, TA a=TA()
 template <class TX, class TY, class TI, class TA=TX>
 inline TA liNormOmp(const vector<TX>& x, const vector<TY>& y, const vector<TI>& is, TA a=TA()) {
   return liNormOmp(x.data(), y.data(), is.data(), is.size(), a);
+}
+#endif
+
+
+
+
+// INCLUSIVE SCAN
+// --------------
+
+template <class TA, class TX>
+inline TA inclusiveScanW(TA *a, const TX *x, size_t N, TA acc=TA()) {
+  ASSERT(a && x);
+  for (size_t i=0; i<N; ++i) {
+    acc += x[i];
+    a[i] = acc;
+  }
+  return acc;
+}
+template <class TA, class TX>
+inline TA inclusiveScanW(vector<TA>& a, const vector<TX>& x, TA acc=TA()) {
+  return inclusiveScanW(a.data(), x.data(), x.size(), acc);
+}
+
+
+#ifdef OPENMP
+template <class TA, class TX>
+inline TA inclusiveScanOmpW(TA *a, TA *buf, const TX *x, size_t N, TA acc=TA()) {
+  ASSERT(a && x);
+  // Each thread computes a local scan of its chunk of the input array,
+  // and then the local scans are combined into a global scan.
+  int H = omp_get_max_threads();
+  fillValueU(buf, H, TA());
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int t = omp_get_thread_num();
+    size_t chunkSize = (N + T - 1) / T;
+    size_t i = t * chunkSize;
+    size_t I = min(i + chunkSize, N);
+    buf[t]   = inclusiveScanW(a+i, x+i, I-i);
+  }
+  // The global scan is computed on the local scans.
+  inclusiveScanW(buf, buf, H);
+  // The global scan is added to the local scans.
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int t = omp_get_thread_num();
+    size_t chunkSize = (N + T - 1) / T;
+    size_t i = t * chunkSize;
+    size_t I = min(i + chunkSize, N);
+    addValueU(a+i, I-i, t==0? acc : buf[t-1] + acc);
+  }
+  return buf[H-1] + acc;
+}
+template <class TA, class TX>
+inline TA inclusiveScanOmpW(vector<TA>& a, vector<TA>& buf, const vector<TX>& x, TA acc=TA()) {
+  return inclusiveScanOmpW(a.data(), buf.data(), x.data(), x.size(), acc);
+}
+#endif
+
+
+
+
+// EXCLUSIVE SCAN
+// --------------
+
+template <class TA, class TX>
+inline TA exclusiveScanW(TA *a, const TX *x, size_t N, TA acc=TA()) {
+  ASSERT(a && x);
+  for (size_t i=0; i<N; ++i) {
+    TA t = x[i];
+    a[i] = acc;
+    acc += t;
+  }
+  return acc;
+}
+template <class TA, class TX>
+inline TA exclusiveScanW(vector<TA>& a, const vector<TX>& x, TA acc=TA()) {
+  return exclusiveScanW(a.data(), x.data(), x.size(), acc);
+}
+
+
+#ifdef OPENMP
+template <class TA, class TX>
+inline TA exclusiveScanOmpW(TA *a, TA *buf, const TX *x, size_t N, TA acc=TA()) {
+  ASSERT(a && x);
+  // Each thread computes a local scan of its chunk of the input array,
+  // and then the local scans are combined into a global scan.
+  int H = omp_get_max_threads();
+  fillValueU(buf, H, TA());
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int t = omp_get_thread_num();
+    size_t chunkSize = (N + T - 1) / T;
+    size_t i = t * chunkSize;
+    size_t I = min(i + chunkSize, N);
+    buf[t]   = exclusiveScanW(a+i, x+i, I-i);
+  }
+  // The global scan is computed on the local scans.
+  inclusiveScanW(buf, buf, H);
+  // The global scan is added to the local scans.
+  #pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int t = omp_get_thread_num();
+    size_t chunkSize = (N + T - 1) / T;
+    size_t i = t * chunkSize;
+    size_t I = min(i + chunkSize, N);
+    addValueU(a+i, I-i, t==0? acc : buf[t-1] + acc);
+  }
+  return buf[H-1] + acc;
+}
+template <class TA, class TX>
+inline TA exclusiveScanOmpW(vector<TA>& a, vector<TA>& buf, const vector<TX>& x, TA acc=TA()) {
+  return exclusiveScanOmpW(a.data(), buf.data(), x.data(), x.size(), acc);
 }
 #endif

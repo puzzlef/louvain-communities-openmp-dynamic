@@ -108,9 +108,9 @@ using std::cout;
   }
 
 #define GRAPH_INEDGES_COPY(K, V, E) \
-  inline auto inEdgeKeys(K u)   const noexcept { return edgeKeys(u); } \
-  inline auto inEdgeValues(K u) const noexcept { return edgeValues(u); } \
-  inline auto inEdges(K u)      const noexcept { return edges(u); }
+  inline auto inEdgeKeys(K v)   const noexcept { return edgeKeys(v); } \
+  inline auto inEdgeValues(K v) const noexcept { return edgeValues(v); } \
+  inline auto inEdges(K v)      const noexcept { return edges(v); }
 #endif
 
 
@@ -444,7 +444,7 @@ using std::cout;
 
 
 #ifndef GRAPH_REMOVE_VERTEX
-#define GRAPH_REMOVE_VERTEX(K, V, E, ists, vvalues) \
+#define GRAPH_REMOVE_VERTEX(K, V, E, vexists, vvalues) \
   template <class FT> \
   inline void removeVertex(K u, FT ft) { \
     if (!hasVertex(u)) return; \
