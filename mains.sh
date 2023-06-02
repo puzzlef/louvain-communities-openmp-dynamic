@@ -12,11 +12,17 @@ fi
 # Don't need to download program again.
 export DOWNLOAD="0"
 
-# 1. Static vs Dynamic Louvain
+# 1. Static vs Dynamic Louvain (Multi-batch)
 export MAX_THREADS="64"
+export BATCH_LENGTH="500"
+export BATCH_DELETIONS_BEGIN="0.005"
+export BATCH_DELETIONS_END="0.005"
+export BATCH_INSERTIONS_BEGIN="0.005"
+export BATCH_INSERTIONS_END="0.005"
 ./main.sh
 
 # For scaling experiments
+export BATCH_LENGTH="1"
 export NUM_THREADS_BEGIN="1"
 export NUM_THREADS_END="128"
 export NUM_THREADS_STEP="*=2"
