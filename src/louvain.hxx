@@ -501,20 +501,21 @@ inline void louvainChangeCommunityOmpW(vector<K>& vcom, vector<W>& ctot, const G
  */
 template <bool REFINE=false, class G, class K, class W, class B, class FC>
 inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcob, const vector<W>& vtot, double M, double R, int L, FC fc) {
-  int l = 0;
-  W  el = W();
+  int l = 0;    // Iterations performed
+  W  el = W();  // Total delta modularity per iteration
   for (; l<L;) {
     el = W();
+    size_t n = 0;  // Number of vertices processed
     x.forEachVertexKey([&](auto u) {
       if (!vaff[u]) return;
       louvainClearScanW(vcs, vcout);
       louvainScanCommunitiesW<false, REFINE>(vcs, vcout, x, u, vcom, vcob);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs, vcout, M, R);
       if (c)      { louvainChangeCommunityW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); }); }
-      vaff[u] = B();
+      vaff[u] = B(); ++n;
       el += e;  // l1-norm
     });
-    if (fc(el, l++)) break;
+    if (fc(el, n, l++)) break;
   }
   return l>1 || el? l : 0;
 }
@@ -523,11 +524,12 @@ inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vecto
 template <bool REFINE=false, class G, class K, class W, class B, class FC>
 inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<K>& vcob, const vector<W>& vtot, double M, double R, int L, FC fc) {
   size_t S = x.span();
-  int l = 0;
-  W  el = W();
+  int l = 0;    // Iterations performed
+  W  el = W();  // Total delta modularity per iteration
   for (; l<L;) {
     el = W();
-    #pragma omp parallel for schedule(auto) reduction(+:el)
+    size_t n = 0;  // Number of vertices processed
+    #pragma omp parallel for schedule(auto) reduction(+:el,n)
     for (K u=0; u<S; ++u) {
       int t = omp_get_thread_num();
       if (!x.hasVertex(u)) continue;
@@ -536,10 +538,10 @@ inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, ve
       louvainScanCommunitiesW<false, REFINE>(*vcs[t], *vcout[t], x, u, vcom, vcob);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, *vcs[t], *vcout[t], M, R);
       if (c)      { louvainChangeCommunityOmpW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); }); }
-      vaff[u] = B();
+      vaff[u] = B(); ++n;
       el += e;  // l1-norm
     }
-    if (fc(el, l++)) break;
+    if (fc(el, n, l++)) break;
   }
   return l>1 || el? l : 0;
 }
@@ -810,6 +812,7 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0, s = 0;
   size_t S = x.span();
+  size_t N = x.order();
   double M = edgeWeight(x)/2;
   vector<K> vcom(S), vcs, a(S);
   vector<W> vtot(S), ctot(S), vcout(S);
@@ -818,16 +821,17 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
   vector<K>& vcob = a;
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
-    double E  = o.tolerance;
-    auto   fc = [&](double el, int l) {
-      if (!JUMP) return el<=E;
-      if (el>E)  return false;
-      if (l>=1)  return true;
-      for (; p<P-1 && el<=E; ++p)
-        E /= o.toleranceDecline;
-      return el<=E;
-    };
     G y; y.respan(S);
+    double E  = o.tolerance;
+    auto   fc = [&](double el, size_t n, int l) {
+      auto fE = [&]() { return E*n/N; };
+      if (!JUMP)   return el<=fE();
+      if (el>fE()) return false;
+      if (l>=1)    return true;
+      for (; p<P-1 && el<=fE(); ++p)
+        E  /= o.toleranceDecline;
+      return el<=fE();
+    };
     fillValueU(vcom, K());
     fillValueU(vtot, W());
     fillValueU(ctot, W());
@@ -887,16 +891,19 @@ auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
   louvainAllocateHashtablesW(vcs, vcout, S);
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
-    double E  = o.tolerance;
-    auto   fc = [&](double el, int l) {
-      if (!JUMP) return el<=E;
-      if (el>E)  return false;
-      if (l>=1)  return true;
-      for (; p<P-1 && el<=E; ++p)
-        E /= o.toleranceDecline;
-      return el<=E;
-    };
     G y; y.respan(S);
+    double E  = o.tolerance;
+    auto   fc = [&](double el, size_t n, int l) {
+      size_t N = s==0? x.order() : y.order();
+      printf("N=%zu, n=%zu, E=%.1e, el=%.1e\n", N, n, E, el);
+      auto fE = [&]() { return E*n/N; };
+      if (!JUMP)   return el<=fE();
+      if (el>fE()) return false;
+      if (l>=1)    return true;
+      for (; p<P-1 && el<=fE(); ++p)
+        E  /= o.toleranceDecline;
+      return el<=fE();
+    };
     fillValueOmpU(vcom, K());
     fillValueOmpU(vtot, W());
     fillValueOmpU(ctot, W());
