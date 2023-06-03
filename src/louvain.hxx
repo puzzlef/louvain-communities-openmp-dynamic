@@ -488,6 +488,8 @@ inline void louvainChangeCommunityOmpW(vector<K>& vcom, vector<W>& ctot, const G
  * Louvain algorithm's local moving phase.
  * @param vcom community each vertex belongs to (initial, updated)
  * @param ctot total edge weight of each community (precalculated, updated)
+ * @param vaff is vertex affected flag (updated)
+ * @param vpro has vertex been processed flag (updated)
  * @param vcs communities vertex u is linked to (temporary buffer, updated)
  * @param vcout total edge weight from vertex u to community C (temporary buffer, updated)
  * @param x original graph
@@ -500,7 +502,7 @@ inline void louvainChangeCommunityOmpW(vector<K>& vcom, vector<W>& ctot, const G
  * @returns iterations performed (0 if converged already)
  */
 template <bool REFINE=false, class G, class K, class W, class B, class FC>
-inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcob, const vector<W>& vtot, double M, double R, int L, FC fc) {
+inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<B>& vpro, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<K>& vcob, const vector<W>& vtot, double M, double R, int L, FC fc) {
   int l = 0;
   W  el = W();
   for (; l<L;) {
@@ -511,17 +513,24 @@ inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vecto
       louvainScanCommunitiesW<false, REFINE>(vcs, vcout, x, u, vcom, vcob);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs, vcout, M, R);
       if (c)      { louvainChangeCommunityW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); }); }
+      if (REFINE) vpro[u] = B(1);
       vaff[u] = B();
       el += e;  // l1-norm
     });
     if (fc(el, l++)) break;
+  }
+  // Move unprocessed vertices to their community bound
+  if (REFINE) {
+    x.forEachVertexKey([&](auto u) {
+      if (!vpro[u]) vcom[u] = vcob[u];
+    });
   }
   return l>1 || el? l : 0;
 }
 
 #ifdef OPENMP
 template <bool REFINE=false, class G, class K, class W, class B, class FC>
-inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<K>& vcob, const vector<W>& vtot, double M, double R, int L, FC fc) {
+inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<B>& vpro, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<K>& vcob, const vector<W>& vtot, double M, double R, int L, FC fc) {
   size_t S = x.span();
   int l = 0;
   W  el = W();
@@ -536,10 +545,19 @@ inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, ve
       louvainScanCommunitiesW<false, REFINE>(*vcs[t], *vcout[t], x, u, vcom, vcob);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, *vcs[t], *vcout[t], M, R);
       if (c)      { louvainChangeCommunityOmpW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); }); }
+      if (REFINE) vpro[u] = B(1);
       vaff[u] = B();
       el += e;  // l1-norm
     }
     if (fc(el, l++)) break;
+  }
+  // Move unprocessed vertices to their community bound.
+  if (REFINE) {
+    #pragma omp parallel for schedule(auto)
+    for (K u=0; u<S; ++u) {
+      if (!x.hasVertex(u)) continue;
+      if (!vpro[u]) vcom[u] = vcob[u];
+    }
   }
   return l>1 || el? l : 0;
 }
@@ -814,7 +832,7 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
   vector<K> vcom(S), vcs, a(S);
   vector<W> vtot(S), ctot(S), vcout(S);
   vector<K> co(S+1), ce(S), cn(S);
-  vector<B> vaff(S);
+  vector<B> vaff(S), vpro(S);
   vector<K>& vcob = a;
   float tm = 0;
   float t  = measureDurationMarked([&](auto mark) {
@@ -828,12 +846,13 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
       return el<=E;
     };
     G y; y.respan(S);
+    if (aff) copyValuesW(vaff, *aff);
+    else     fillValueU (vaff, B(1));
+    fillValueU(vpro, B());
     fillValueU(vcom, K());
     fillValueU(vtot, W());
     fillValueU(ctot, W());
     fillValueU(a, K());
-    if (aff) copyValuesW(vaff, *aff);
-    else     fillValueU (vaff, B(1));
     mark([&]() {
       tm = measureDuration(fm);
       louvainVertexWeightsW(vtot, x);
@@ -841,8 +860,8 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
       else   louvainInitializeW(vcom, ctot, x, vtot);
       for (l=0, p=0, s=0; M>0 && p<P;) {
         int m = 0;
-        if (s==0) m = louvainMoveW<REFINE>(vcom, ctot, vaff, vcs, vcout, x, vcob, vtot, M, R, L, fc);
-        else      m = louvainMoveW<false> (vcom, ctot, vaff, vcs, vcout, y, vcob, vtot, M, R, L, fc);
+        if (s==0) m = louvainMoveW<REFINE>(vcom, ctot, vaff, vpro, vcs, vcout, x, vcob, vtot, M, R, L, fc);
+        else      m = louvainMoveW<false> (vcom, ctot, vaff, vpro, vcs, vcout, y, vcob, vtot, M, R, L, fc);
         if (s==0) copyValuesW(a, vcom);
         else      louvainLookupCommunitiesU(a, vcom);
         l += max(m, 1); ++p; ++s;
@@ -876,11 +895,11 @@ auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
   size_t S = x.span();
   double M = edgeWeightOmp(x)/2;
   int    T = omp_get_max_threads();
+  vector<K> bufk(T);
   vector<K> vcom(S), a(S);
   vector<W> vtot(S), ctot(S);
   vector<K> co(S+1), ce(S), cn(S);
-  vector<K> bufk(T);
-  vector<B> vaff(S);
+  vector<B> vaff(S), vpro(S);
   vector<K>& vcob = a;
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
@@ -897,12 +916,13 @@ auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
       return el<=E;
     };
     G y; y.respan(S);
+    if (aff) copyValuesOmpW(vaff, *aff);
+    else     fillValueOmpU (vaff, B(1));
+    fillValueOmpU(vpro, B());
     fillValueOmpU(vcom, K());
     fillValueOmpU(vtot, W());
     fillValueOmpU(ctot, W());
     fillValueOmpU(a, K());
-    if (aff) copyValuesOmpW(vaff, *aff);
-    else     fillValueOmpU (vaff, B(1));
     mark([&]() {
       tm = measureDuration(fm);
       louvainVertexWeightsOmpW(vtot, x);
@@ -910,8 +930,8 @@ auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
       else   louvainInitializeOmpW(vcom, ctot, x, vtot);
       for (l=0, p=0, s=0; M>0 && p<P;) {
         int m = 0;
-        if (s==0) m = louvainMoveOmpW<REFINE>(vcom, ctot, vaff, vcs, vcout, x, vcob, vtot, M, R, L, fc);
-        else      m = louvainMoveOmpW<false> (vcom, ctot, vaff, vcs, vcout, y, vcob, vtot, M, R, L, fc);
+        if (s==0) m = louvainMoveOmpW<REFINE>(vcom, ctot, vaff, vpro, vcs, vcout, x, vcob, vtot, M, R, L, fc);
+        else      m = louvainMoveOmpW<false> (vcom, ctot, vaff, vpro, vcs, vcout, y, vcob, vtot, M, R, L, fc);
         if (s==0) copyValuesW(a, vcom);
         else      louvainLookupCommunitiesOmpU(a, vcom);
         l += max(m, 1); ++p; ++s;
