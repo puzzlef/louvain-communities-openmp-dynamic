@@ -816,14 +816,14 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& x,
  * Find the community each vertex belongs to.
  * @param x original graph
  * @param q initial community each vertex belongs to
- * @param aff vertex affected flag
  * @param o louvain options
- * @param fm marking affected vertices / preprocessing to be performed ()
+ * @param fm marking affected vertices / preprocessing to be performed (vaff)
  * @returns community each vertex belongs to
  */
-template <bool JUMP=false, bool REFINE=false, class G, class K, class B, class FM>
-auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const LouvainOptions& o, FM fm) {
+template <bool JUMP=false, bool REFINE=false, class FLAG=char, class G, class K, class FM>
+auto louvainSeq(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) {
   using  W = LOUVAIN_WEIGHT_TYPE;
+  using  B = FLAG;
   double R = o.resolution;
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0, s = 0;
@@ -846,15 +846,13 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
       return el<=E;
     };
     G y; y.respan(S);
-    if (aff) copyValuesW(vaff, *aff);
-    else     fillValueU (vaff, B(1));
     fillValueU(vpro, B());
     fillValueU(vcom, K());
     fillValueU(vtot, W());
     fillValueU(ctot, W());
     fillValueU(a, K());
     mark([&]() {
-      tm = measureDuration(fm);
+      tm = measureDuration([&]() { fm(vaff); });
       louvainVertexWeightsW(vtot, x);
       if (q) louvainInitializeFromW<REFINE>(vcom, vcob, ctot, x, vtot, *q);
       else   louvainInitializeW(vcom, ctot, x, vtot);
@@ -886,9 +884,10 @@ auto louvainSeq(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
 }
 
 #ifdef OPENMP
-template <bool JUMP=false, bool REFINE=false, class G, class K, class B, class FM>
-auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const LouvainOptions& o, FM fm) {
+template <bool JUMP=false, bool REFINE=false, class FLAG=char, class G, class K, class FM>
+auto louvainOmp(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) {
   using  W = LOUVAIN_WEIGHT_TYPE;
+  using  B = FLAG;
   double R = o.resolution;
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0, s = 0;
@@ -916,15 +915,13 @@ auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
       return el<=E;
     };
     G y; y.respan(S);
-    if (aff) copyValuesOmpW(vaff, *aff);
-    else     fillValueOmpU (vaff, B(1));
     fillValueOmpU(vpro, B());
     fillValueOmpU(vcom, K());
     fillValueOmpU(vtot, W());
     fillValueOmpU(ctot, W());
     fillValueOmpU(a, K());
     mark([&]() {
-      tm = measureDuration(fm);
+      tm = measureDuration([&]() { fm(vaff); });
       louvainVertexWeightsOmpW(vtot, x);
       if (q) louvainInitializeFromOmpW<REFINE>(vcom, vcob, ctot, x, vtot, *q);
       else   louvainInitializeOmpW(vcom, ctot, x, vtot);
@@ -965,19 +962,15 @@ auto louvainOmp(const G& x, const vector<K> *q, const vector<B> *aff, const Louv
 
 template <bool JUMP=false, bool REFINE=false, class FLAG=char, class G, class K>
 inline auto louvainStaticSeq(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
-  using B = FLAG;
-  auto fm = []() {};
-  vector<B> *aff = nullptr;
-  return louvainSeq<JUMP, REFINE>(x, q, aff, o, fm);
+  auto fm = [](auto& vertices) { fillValueU(vertices, FLAG(1)); };
+  return louvainSeq<JUMP, REFINE, FLAG>(x, q, o, fm);
 }
 
 #ifdef OPENMP
 template <bool JUMP=false, bool REFINE=false, class FLAG=char, class G, class K>
 inline auto louvainStaticOmp(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
-  using B = FLAG;
-  auto fm = []() {};
-  vector<B> *aff = nullptr;
-  return louvainOmp<JUMP, REFINE>(x, q, aff, o, fm);
+  auto fm = [](auto& vertices) { fillValueOmpU(vertices, FLAG(1)); };
+  return louvainOmp<JUMP, REFINE, FLAG>(x, q, o, fm);
 }
 #endif
 
@@ -997,11 +990,11 @@ inline auto louvainDynamicDeltaScreeningSeq(const G& x, const vector<tuple<K, K>
   const vector<K>& vcom = *q;
   vector<V> vtot(S), ctot(S);
   vector<K> vcs; vector<W> vcout(S);
-  vector<B> vertices(S), neighbors(S), communities(S);
+  vector<B> neighbors(S), communities(S);
   louvainVertexWeightsW(vtot, x);
   louvainCommunityWeightsW(ctot, x, vcom, vtot);
-  auto fm = [&]() { louvainAffectedVerticesDeltaScreeningW(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); vcs.clear(); vcout.clear(); };
-  return louvainSeq<JUMP, REFINE>(x, q, &vertices, o, fm);
+  auto fm = [&](auto& vertices) { louvainAffectedVerticesDeltaScreeningW(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); vcs.clear(); vcout.clear(); };
+  return louvainSeq<JUMP, REFINE, FLAG>(x, q, o, fm);
 }
 
 
@@ -1016,14 +1009,14 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>
   int    T = omp_get_max_threads();
   const vector<K>& vcom = *q;
   vector<W> vtot(S), ctot(S);
-  vector<B> vertices(S), neighbors(S), communities(S);
+  vector<B> neighbors(S), communities(S);
   vector<vector<K>*> vcs(T);
   vector<vector<W>*> vcout(T);
   louvainAllocateHashtablesW(vcs, vcout, S);
   louvainVertexWeightsOmpW(vtot, x);
   louvainCommunityWeightsOmpW(ctot, x, vcom, vtot);
-  auto fm = [&]() { louvainAffectedVerticesDeltaScreeningOmpW(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); louvainFreeHashtablesW(vcs, vcout); };
-  return louvainOmp<JUMP, REFINE>(x, q, &vertices, o, fm);
+  auto fm = [&](auto& vertices) { louvainAffectedVerticesDeltaScreeningOmpW(vcs, vcout, vertices, neighbors, communities, x, deletions, insertions, vcom, vtot, ctot, M, R); louvainFreeHashtablesW(vcs, vcout); };
+  return louvainOmp<JUMP, REFINE, FLAG>(x, q, o, fm);
 }
 #endif
 
@@ -1035,23 +1028,17 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>
 
 template <bool JUMP=false, bool REFINE=false, class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontierSeq(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
-  using  B = FLAG;
-  size_t S = x.span();
   const vector<K>& vcom = *q;
-  vector<B> vertices(S);
-  auto fm = [&]() { louvainAffectedVerticesFrontierW(vertices, x, deletions, insertions, vcom); };
-  return louvainSeq<JUMP, REFINE>(x, q, &vertices, o, fm);
+  auto fm = [&](auto& vertices) { louvainAffectedVerticesFrontierW(vertices, x, deletions, insertions, vcom); };
+  return louvainSeq<JUMP, REFINE, FLAG>(x, q, o, fm);
 }
 
 
 #ifdef OPENMP
 template <bool JUMP=false, bool REFINE=false, class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontierOmp(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
-  using  B = FLAG;
-  size_t S = x.span();
   const vector<K>& vcom = *q;
-  vector<B> vertices(S);
-  auto fm = [&]() { louvainAffectedVerticesFrontierOmpW(vertices, x, deletions, insertions, vcom); };
-  return louvainOmp<JUMP, REFINE>(x, q, &vertices, o, fm);
+  auto fm = [&](auto& vertices) { louvainAffectedVerticesFrontierOmpW(vertices, x, deletions, insertions, vcom); };
+  return louvainOmp<JUMP, REFINE, FLAG>(x, q, o, fm);
 }
 #endif
