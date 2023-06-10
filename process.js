@@ -95,8 +95,10 @@ function readLog(pth) {
 
 function processCsv(data) {
   var a = [];
-  for (var rows of data.values())
-    a.push(...rows);
+  for (var rows of data.values()) {
+    for (var row of rows)
+      a.push(row);
+  }
   return a;
 }
 
