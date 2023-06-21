@@ -194,9 +194,10 @@ void runExperiment(const G& x) {
     auto glog = [&](const auto& ans, const char *technique, int numThreads) {
       printf(
         "{-%.3e/+%.3e batch, %03d threads} -> "
-        "{%09.1f/%09.1fms, %04d iters, %03d passes, %01.9f modularity} %s\n",
+        "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %zu/%zu affected, %04d iters, %03d passes, %01.9f modularity} %s\n",
         double(deletions.size()), double(insertions.size()), numThreads,
-        ans.preprocessingTime, ans.time, ans.iterations, ans.passes, getModularity(y, ans, M), technique
+        ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
+        ans.affectedVertices, y.order(), ans.iterations, ans.passes, getModularity(y, ans, M), technique
       );
     };
     #if BATCH_LENGTH>1
