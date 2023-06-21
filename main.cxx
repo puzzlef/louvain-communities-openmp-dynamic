@@ -205,9 +205,9 @@ void runExperiment(const G& x) {
     // Follow a specific result logging format, which can be easily parsed later.
     auto glog = [&](const auto& ans, const char *technique, int numThreads) {
       printf(
-        "{-%.3e/+%.3e [%04d] batch, %03d threads} -> "
+        "{-%.3e/+%.3e batch, %03d threads} -> "
         "{%09.1f/%09.1fms, %04d iters, %03d passes, %01.9f modularity} %s\n",
-        double(deletions.size()), double(insertions.size()), sequence, numThreads,
+        double(deletions.size()), double(insertions.size()), numThreads,
         ans.preprocessingTime, ans.time, ans.iterations, ans.passes, getModularity(y, ans, M), technique
       );
     };
