@@ -782,7 +782,7 @@ auto louvainSeq(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) 
   using  B = FLAG;
   double R = o.resolution;
   int    L = o.maxIterations, l = 0;
-  int    P = o.maxPasses, p = 0, s = 0;
+  int    P = o.maxPasses, p = 0;
   size_t S = x.span();
   double M = edgeWeight(x)/2;
   vector<K> vcom(S), vcs, a(S);
@@ -803,15 +803,13 @@ auto louvainSeq(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) 
       louvainVertexWeightsW(vtot, x);
       if (q) louvainInitializeFromW(vcom, ctot, x, vtot, *q);
       else   louvainInitializeW(vcom, ctot, x, vtot);
-      for (l=0, p=0, s=0; M>0 && p<P;) {
-        int m = 0;
-        if (s==0) m = louvainMoveW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc);
-        else      m = louvainMoveW(vcom, ctot, vaff, vcs, vcout, y, vtot, M, R, L, fc);
-        if (s==0) copyValuesW(a, vcom);
+      for (l=0, p=0; M>0 && p<P;) {
+        const G& g = p==0? x : y;
+        int m = louvainMoveW(vcom, ctot, vaff, vcs, vcout, g, vtot, M, R, L, fc);
+        if (p==0) copyValuesW(a, vcom);
         else      louvainLookupCommunitiesU(a, vcom);
-        l += max(m, 1); ++p; ++s;
+        l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
-        const G& g = s<=1? x : y;
         size_t gn = g.order();
         size_t yn = louvainCountCommunityVerticesW(cn, g, vcom);
         if (double(yn)/gn >= o.aggregationTolerance) break;
@@ -827,7 +825,7 @@ auto louvainSeq(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) 
       }
     });
   }, o.repeat);
-  return LouvainResult<K>(a, l, s, t, tm);
+  return LouvainResult<K>(a, l, p, t, tm);
 }
 
 #ifdef OPENMP
@@ -837,7 +835,7 @@ auto louvainOmp(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) 
   using  B = FLAG;
   double R = o.resolution;
   int    L = o.maxIterations, l = 0;
-  int    P = o.maxPasses, p = 0, s = 0;
+  int    P = o.maxPasses, p = 0;
   size_t S = x.span();
   double M = edgeWeightOmp(x)/2;
   int    T = omp_get_max_threads();
@@ -863,15 +861,13 @@ auto louvainOmp(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) 
       louvainVertexWeightsOmpW(vtot, x);
       if (q) louvainInitializeFromOmpW(vcom, ctot, x, vtot, *q);
       else   louvainInitializeOmpW(vcom, ctot, x, vtot);
-      for (l=0, p=0, s=0; M>0 && p<P;) {
-        int m = 0;
-        if (s==0) m = louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc);
-        else      m = louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, y, vtot, M, R, L, fc);
-        if (s==0) copyValuesW(a, vcom);
+      for (l=0, p=0; M>0 && p<P;) {
+        const G& g = p==0? x : y;
+        int m = louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, g, vtot, M, R, L, fc);
+        if (p==0) copyValuesW(a, vcom);
         else      louvainLookupCommunitiesOmpU(a, vcom);
-        l += max(m, 1); ++p; ++s;
+        l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
-        const G& g = s<=1? x : y;
         size_t gn = g.order();
         size_t yn = louvainCountCommunityVerticesOmpW(cn, g, vcom);
         if (double(yn)/gn >= o.aggregationTolerance) break;
@@ -888,7 +884,7 @@ auto louvainOmp(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm) 
     });
   }, o.repeat);
   louvainFreeHashtablesW(vcs, vcout);
-  return LouvainResult<K>(a, l, s, t, tm);
+  return LouvainResult<K>(a, l, p, t, tm);
 }
 #endif
 
