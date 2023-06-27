@@ -213,18 +213,61 @@ void runExperiment(const G& x) {
       auto flog = [&](const auto& ans, const char *technique) {
         glog(ans, technique, numThreads, y, M, deletionsf, insertionsf);
       };
+      // LouvainOptions(int repeat=1, double resolution=1, double tolerance=1e-2, double aggregationTolerance=0.8, double toleranceDrop=10, int maxIterations=20, int maxPasses=10) :
       // Find static Louvain.
       auto b1 = louvainStaticOmp(y, init, {repeat});
       flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainStaticOmp(y, &B2, {repeat});
-      flog(b2, "louvainNaiveDynamicOmp");
+      auto b20 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-2, 0.8, 10, 20, 10});
+      flog(b20, "louvainNaiveDynamicOmp1e_2");
+      auto b21 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-4, 0.8, 10, 20, 10});
+      flog(b21, "louvainNaiveDynamicOmp1e_4");
+      auto b22 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-6, 0.8, 10, 20, 10});
+      flog(b22, "louvainNaiveDynamicOmp1e_6");
+      auto b23 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-8, 0.8, 10, 20, 10});
+      flog(b23, "louvainNaiveDynamicOmp1e_8");
+      auto b24 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-10, 0.8, 10, 20, 10});
+      flog(b24, "louvainNaiveDynamicOmp1e_10");
+      auto b25 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-12, 0.8, 10, 20, 10});
+      flog(b25, "louvainNaiveDynamicOmp1e_12");
+      auto b26 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-14, 0.8, 10, 20, 10});
+      flog(b26, "louvainNaiveDynamicOmp1e_14");
+      auto b27 = louvainStaticOmp(y, &B2, {repeat, 1.0, 1e-16, 0.8, 10, 20, 10});
+      flog(b27, "louvainNaiveDynamicOmp1e_16");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat});
-      flog(b4, "louvainDynamicFrontierOmp");
+      auto b40 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-2, 0.8, 10, 20, 10});
+      flog(b40, "louvainDynamicFrontierOmp1e_2");
+      auto b41 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-4, 0.8, 10, 20, 10});
+      flog(b41, "louvainDynamicFrontierOmp1e_4");
+      auto b42 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-6, 0.8, 10, 20, 10});
+      flog(b42, "louvainDynamicFrontierOmp1e_6");
+      auto b43 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-8, 0.8, 10, 20, 10});
+      flog(b43, "louvainDynamicFrontierOmp1e_8");
+      auto b44 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-10, 0.8, 10, 20, 10});
+      flog(b44, "louvainDynamicFrontierOmp1e_10");
+      auto b45 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-12, 0.8, 10, 20, 10});
+      flog(b45, "louvainDynamicFrontierOmp1e_12");
+      auto b46 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-14, 0.8, 10, 20, 10});
+      flog(b46, "louvainDynamicFrontierOmp1e_14");
+      auto b47 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat, 1.0, 1e-16, 0.8, 10, 20, 10});
+      flog(b47, "louvainDynamicFrontierOmp1e_16");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat});
-      flog(b3, "louvainDynamicDeltaScreeningOmp");
+      auto b30 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-2, 0.8, 10, 20, 10});
+      flog(b30, "louvainDynamicDeltaScreeningOmp1e_2");
+      auto b31 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-4, 0.8, 10, 20, 10});
+      flog(b31, "louvainDynamicDeltaScreeningOmp1e_4");
+      auto b32 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-6, 0.8, 10, 20, 10});
+      flog(b32, "louvainDynamicDeltaScreeningOmp1e_6");
+      auto b33 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-8, 0.8, 10, 20, 10});
+      flog(b33, "louvainDynamicDeltaScreeningOmp1e_8");
+      auto b34 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-10, 0.8, 10, 20, 10});
+      flog(b34, "louvainDynamicDeltaScreeningOmp1e_10");
+      auto b35 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-12, 0.8, 10, 20, 10});
+      flog(b35, "louvainDynamicDeltaScreeningOmp1e_12");
+      auto b36 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-14, 0.8, 10, 20, 10});
+      flog(b36, "louvainDynamicDeltaScreeningOmp1e_14");
+      auto b37 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat, 1.0, 1e-16, 0.8, 10, 20, 10});
+      flog(b37, "louvainDynamicDeltaScreeningOmp1e_16");
       #if BATCH_LENGTH>1
       B2 = b2.membership;
       B3 = b3.membership;
