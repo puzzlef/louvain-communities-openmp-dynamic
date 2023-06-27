@@ -36,7 +36,7 @@ using namespace std;
 template <class G, class K>
 inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
-  return modularityByOmp(x, fc, M, 1.0);
+  return modularityBy(x, fc, M, 1.0);
 }
 
 
