@@ -99,7 +99,7 @@ inline void runAbsoluteBatches(const G& x, R& rnd, F fn) {
       for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
       auto deletions  = removeRandomEdges(y, rnd, d, 1, x.span()-1);
       auto insertions = addRandomEdges   (y, rnd, i, 1, x.span()-1);
-        fn(y, deletions, insertions, sequence, epoch);
+        fn(y, d, deletions, i, insertions, sequence, epoch);
       }
     }
     if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
@@ -121,7 +121,7 @@ inline void runRelativeBatches(const G& x, R& rnd, F fn) {
       for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
       auto deletions  = removeRandomEdges(y, rnd, size_t(d * x.size()/2), 1, x.span()-1);
       auto insertions = addRandomEdges   (y, rnd, size_t(i * x.size()/2), 1, x.span()-1);
-        fn(y, deletions, insertions, sequence, epoch);
+        fn(y, d, deletions, i, insertions, sequence, epoch);
       }
     }
     if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
@@ -188,14 +188,14 @@ void runExperiment(const G& x) {
   const auto& B4 = b0.membership;
   #endif
   // Get community memberships on updated graph (dynamic).
-  runBatches(x, rnd, [&](const auto& y, const auto& deletions, const auto& insertions, int sequence, int epoch) {
+  runBatches(x, rnd, [&](const auto& y, auto deletionsf, const auto& deletions, auto insertionsf, const auto& insertions, int sequence, int epoch) {
     double M = edgeWeightOmp(y)/2;
     // Follow a specific result logging format, which can be easily parsed later.
     auto glog = [&](const auto& ans, const char *technique, int numThreads) {
       printf(
-        "{-%.3e/+%.3e batch, %03d threads} -> "
+        "{-%.3e/+%.3e batchf, %03d threads} -> "
         "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %zu/%zu affected, %04d iters, %03d passes, %01.9f modularity} %s\n",
-        double(deletions.size()), double(insertions.size()), numThreads,
+        double(deletionsf), double(insertionsf), numThreads,
         ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
         ans.affectedVertices, y.order(), ans.iterations, ans.passes, getModularity(y, ans, M), technique
       );
