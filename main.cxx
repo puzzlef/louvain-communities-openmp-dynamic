@@ -34,6 +34,16 @@ using namespace std;
 // -------
 
 template <class G, class K>
+inline double matchRatio(const G& x, const vector<K>& ans, const vector<K>& ref) {
+  size_t n = 0;
+  x.forEachVertexKey([&](auto u) {
+    if (ans[u]==ref[u]) ++n;
+  });
+  return double(n) / x.order();
+}
+
+
+template <class G, class K>
 inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
   return modularityBy(x, fc, M, 1.0);
@@ -81,6 +91,24 @@ auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
     retry([&]() { return removeRandomEdge(a, rnd, i, n, fe); }, retries);
   updateOmpU(a);
   return deletions;
+}
+
+
+template <class K, class V>
+inline auto withoutWeights(const vector<tuple<K, K, V>>& edges) {
+  vector<tuple<K, K>> a;
+  for (auto [u, v, w] : edges)
+    a.push_back(make_tuple(u, v));
+  return a;
+}
+
+
+template <class K, class V>
+inline auto withWeights(const vector<tuple<K, K>>& edges, V w) {
+  vector<tuple<K, K, V>> a;
+  for (auto [u, v] : edges)
+    a.push_back(make_tuple(u, v, w));
+  return a;
 }
 
 
@@ -179,18 +207,19 @@ void runExperiment(const G& x) {
   vector<K> *init = nullptr;
   double M = edgeWeightOmp(x)/2;
   // Follow a specific result logging format, which can be easily parsed later.
-  auto glog = [&](const auto& ans, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
+  auto glog = [&](const auto& ans, const auto& ref, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
     printf(
       "{-%.3e/+%.3e batchf, %03d threads} -> "
-      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e affected, %04d iters, %03d passes, %01.9f modularity} %s\n",
+      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e affected, %04d iters, %03d passes, %01.9f modularity, %01.9f match} %s\n",
       double(deletionsf), double(insertionsf), numThreads,
       ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
-      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(y, ans, M), technique
+      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(y, ans, M),
+      matchRatio(x, ans.membership, ref.membership), technique
     );
   };
   // Get community memberships on original graph (static).
   auto b0 = louvainStaticOmp(x, init, {5});
-  glog(b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
+  glog(b0, b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
   #if BATCH_LENGTH>1
   vector<K> B2, B3, B4;
   #else
@@ -211,20 +240,26 @@ void runExperiment(const G& x) {
     // Adjust number of threads.
     runThreads(epoch, [&](int numThreads) {
       auto flog = [&](const auto& ans, const char *technique) {
-        glog(ans, technique, numThreads, y, M, deletionsf, insertionsf);
+        glog(ans, b0, technique, numThreads, y, M, deletionsf, insertionsf);
       };
+      auto rdeletions  = withoutWeights(insertions);
+      auto rinsertions = withWeights(deletions, V(1));
       // Find static Louvain.
-      auto b1 = louvainStaticOmp(y, init, {repeat});
-      flog(b1, "louvainStaticOmp");
+      auto b1d = louvainStaticOmp(y, init, {repeat});
+      auto b1i = louvainStaticOmp(x, init, {repeat});
+      flog(b1i, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainStaticOmp(y, &B2, {repeat});
-      flog(b2, "louvainNaiveDynamicOmp");
+      auto b2d = louvainStaticOmp(y, &b0 .membership, {repeat});
+      auto b2i = louvainStaticOmp(x, &b2d.membership, {repeat});
+      flog(b2i, "louvainNaiveDynamicOmp");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat});
-      flog(b4, "louvainDynamicFrontierOmp");
+      auto b4d = louvainDynamicFrontierOmp(y, deletions,  insertions,  &b0 .membership, {repeat});
+      auto b4i = louvainDynamicFrontierOmp(x, rdeletions, rinsertions, &b4d.membership, {repeat});
+      flog(b4i, "louvainDynamicFrontierOmp");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat});
-      flog(b3, "louvainDynamicDeltaScreeningOmp");
+      auto b3d = louvainDynamicDeltaScreeningOmp(y, deletions,  insertions,  &b0 .membership, {repeat});
+      auto b3i = louvainDynamicDeltaScreeningOmp(x, rdeletions, rinsertions, &b3d.membership, {repeat});
+      flog(b3i, "louvainDynamicDeltaScreeningOmp");
       #if BATCH_LENGTH>1
       B2 = b2.membership;
       B3 = b3.membership;
