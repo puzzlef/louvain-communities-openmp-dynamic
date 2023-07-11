@@ -83,44 +83,71 @@ Each batch of edges (insertion / deletion) is generated randomly such that the
 selection of each vertex (as endpoint) is *equally probable*. We choose the
 Louvain *parameters* as `resolution = 1.0`, `tolerance = 1e-2` (for local-moving
 phase) with *tolerance* decreasing after every pass by a factor of
-`toleranceDeclineFactor = 10`, and a `passTolerance = 0.0` (when passes stop).
-In addition we limit the maximum number of iterations in a single local-moving
-phase with `maxIterations = 20`, and limit the maximum number of passes with
-`maxPasses = 20`. We run the Louvain algorithm until convergence (or until the
-maximum limits are exceeded), and measure the **time taken** for the
-*computation* and *pre-processing* (for dynamic approaches), the **modularity**
-**score**, the **total number of iterations** (in the *local-moving phase*), and
-the number of **passes**. This is repeated for each input graph.
+`toleranceDrop = 10`, an `aggregationTolerance = 0.8` which considers
+communities to have converged when a few communities merge together, and a
+`passTolerance = 0.0` (when passes stop). In addition we limit the maximum
+number of iterations in a single local-moving phase with `maxIterations = 20`,
+and limit the maximum number of passes with `maxPasses = 10`. We run the Louvain
+algorithm until convergence (or until the maximum limits are exceeded), and
+measure the **time taken** for the *computation* and *pre-processing* (for
+dynamic approaches), the **modularity** **score**, the **total number of**
+**iterations** (in the *local-moving phase*), and the number of **passes**. This
+is repeated for each input graph.
 
 From the results, we make make the following observations. **Dynamic Frontier**
 based **Louvain** converges the fastest, which obtaining communities with
 equivalent modularity. We also observe that **Dynamic Delta-screening** based
-**Louvain** has the same performance as that of the Naive-dynamic approach, but
-has poorer performance for larger batch sizes (due to its high pre-processing
-cost/overhead for large batch sizes). Therefore, **Dynamic Frontier based**
+**Louvain** has poorer performance than the Naive-dynamic approach (due to its
+high pre-processing cost/overhead). Therefore, **Dynamic Frontier based**
 **Louvain** would be the **best choice**. We also not that **Louvain** algorithm
-does not scaled too well with an increase in the number of threads. This is
+does not scale too well with an increase in the number of threads. This is
 likely due to higher pressure on cache coherence system as well as the algorithm
 becoming closer to a synchronous approach, which is inherently slower than an
 asynchronous approach. Trying to avoid community swaps with parallel approach
 does not seem to improve performance by any significant amount. However, it is
 possible that if synchronous approach is used with OpenMP, then its performance
-may be a bit better. All outputs are saved in a [gist] and a small part of the
-output is listed here. Some [charts] are also included below, generated from
-[sheets].
+may be a bit better.
 
-[![](https://i.imgur.com/FDFFa4F.png)][sheetp]
-[![](https://i.imgur.com/cb8M5dO.png)][sheetp]
-[![](https://i.imgur.com/uls0R3W.png)][sheetp]
-[![](https://i.imgur.com/SlWkSBc.png)][sheetp]
-[![](https://i.imgur.com/goTmd1W.png)][sheetp]
-[![](https://i.imgur.com/eW0rCWo.png)][sheetp]
+> See
+> [code](https://github.com/puzzlef/louvain-communities-openmp-dynamic/tree/input-large),
+> [output](https://gist.github.com/wolfram77/adbef451db5bf46f1a7243349121a860), or
+> [sheets].
 
-[input-large]: https://github.com/puzzlef/louvain-communities-openmp-dynamic/tree/input-large
-[gist]: https://gist.github.com/wolfram77/2d64f933f6524ba15ee7593f7e3b10f5
-[charts]: https://imgur.com/a/Gbc8WgO
+
+[![](https://i.imgur.com/qCYVeh4.png)][sheets]
+[![](https://i.imgur.com/4PBroEt.png)][sheets]
+[![](https://i.imgur.com/T2LG2RJ.png)][sheets]
+[![](https://i.imgur.com/WdOu1ON.png)][sheets]
+[![](https://i.imgur.com/fGrM5an.png)][sheets]
+[![](https://i.imgur.com/3xfJBsD.png)][sheets]
+
+We also measure the pass-wise and phase-wise split of time taken for each
+approach. **Dynamic Frontier** approach only performs more than one pass when
+batch size is large enough.
+
+[![](https://i.imgur.com/qccysjM.png)][sheets]
+[![](https://i.imgur.com/gK9NS6b.png)][sheets]
+[![](https://i.imgur.com/p8439Ry.png)][sheets]
+[![](https://i.imgur.com/kCyhyMf.png)][sheets]
+
+Each pass of Louvain is divided into two main phases: *local-moving*, and
+*aggregation*. In addition to the two, *other work* also need to be
+performed. These include:
+- Initializing vertex weights, community weights, and community memberships
+- Re-numbering community IDs
+- Flattening dendrogram (lookups)
+- Obtaining vertices beloning to each community
+- Clearing various buffers
+
+With **Dynamic Frontier**, most time is spent doing this *other work*, followed by
+*local-moving* phase, and then the *aggregation* phase.
+
+[![](https://i.imgur.com/DrHWAgO.png)][sheets]
+[![](https://i.imgur.com/2EFYN1X.png)][sheets]
+[![](https://i.imgur.com/5eSzJzf.png)][sheets]
+[![](https://i.imgur.com/xSREmHM.png)][sheets]
+
 [sheets]: https://docs.google.com/spreadsheets/d/1F6Z-lWNDYynm6m2PTsIN_nxMu8Y9CrkIQagCU0Nr2LU/edit?usp=sharing
-[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vS5LH03ALzgcv6QNV9I9Wl1_000Vl9BNZKnMdF04d4qeG5dqQ60fFHL4xynG_8LnVFbsyaJAucWuen6/pubhtml
 
 <br>
 
