@@ -14,6 +14,12 @@ export DOWNLOAD="0"
 
 # 1. Static vs Dynamic Louvain
 export MAX_THREADS="64"
+export BATCH_DELETIONS_BEGIN="0.005"
+export BATCH_DELETIONS_END="0.05"
+export BATCH_DELETIONS_STEP="*=10"
+export BATCH_INSERTIONS_BEGIN="0.005"
+export BATCH_INSERTIONS_END="0.05"
+export BATCH_INSERTIONS_STEP="*=10"
 ./main.sh
 
 # For scaling experiments
