@@ -52,9 +52,9 @@ DEFINES=(""
 
 # Run
 g++ ${DEFINES[*]} -std=c++17 -O3 -fopenmp main.cxx
-stdbuf --output=L ./a.out ~/Data/caidaRouterLevel.mtx  0 0 2>&1 | tee -a "$out"
+# stdbuf --output=L ./a.out ~/Data/caidaRouterLevel.mtx  0 0 2>&1 | tee -a "$out"
 stdbuf --output=L ./a.out ~/Data/coPapersDBLP.mtx      0 0 2>&1 | tee -a "$out"
-stdbuf --output=L ./a.out ~/Data/eu-2005.mtx           0 0 2>&1 | tee -a "$out"
+# stdbuf --output=L ./a.out ~/Data/eu-2005.mtx           0 0 2>&1 | tee -a "$out"
 # stdbuf --output=L ./a.out ~/Data/indochina-2004.mtx  0 0 2>&1 | tee -a "$out"
 # stdbuf --output=L ./a.out ~/Data/uk-2002.mtx         0 0 2>&1 | tee -a "$out"
 # stdbuf --output=L ./a.out ~/Data/arabic-2005.mtx     0 0 2>&1 | tee -a "$out"
