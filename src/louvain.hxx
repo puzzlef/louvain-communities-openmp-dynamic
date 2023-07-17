@@ -751,7 +751,7 @@ auto louvainSeq(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm, 
     z .respan(S);
     mark([&]() {
       tm += measureDuration([&]() { fm(vaff); });
-      naff = sumValues(vaff, size_t());
+      // naff = sumValues(vaff, size_t());
       auto t0 = timeNow(), t1 = t0;
       louvainVertexWeightsW(vtot, x);
       if (q) louvainInitializeFromW(vcom, ctot, x, vtot, *q);
@@ -839,7 +839,7 @@ auto louvainOmp(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm, 
     z .respan(S);
     mark([&]() {
       tm += measureDuration([&]() { fm(vaff); });
-      naff = sumValuesOmp(vaff, size_t());
+      // naff = sumValuesOmp(vaff, size_t());
       auto t0 = timeNow(), t1 = t0;
       louvainVertexWeightsOmpW(vtot, x);
       if (q) louvainInitializeFromOmpW(vcom, ctot, x, vtot, *q);
@@ -1142,9 +1142,11 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& x, const vector<tuple<K, K>
 
 template <class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontierSeq(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+  using  B = FLAG;
   const vector<K>& vcom = *q;
-  auto fm = [&](auto& vaff) { louvainAffectedVerticesFrontierW(vaff, x, deletions, insertions, vcom); };
-  auto fa = [](auto u) { return true; };
+  vector<B> vertices(x.span());
+  auto fm = [&](auto& vaff) { louvainAffectedVerticesFrontierW(vertices, x, deletions, insertions, vcom); copyValuesW(vaff, vertices); };
+  auto fa = [&](auto u) { return vertices[u] == B(1); };
   return louvainSeq<FLAG>(x, q, o, fm, fa);
 }
 
@@ -1152,9 +1154,11 @@ inline auto louvainDynamicFrontierSeq(const G& x, const vector<tuple<K, K>>& del
 #ifdef OPENMP
 template <class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontierOmp(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+  using  B = FLAG;
   const vector<K>& vcom = *q;
-  auto fm = [&](auto& vaff) { louvainAffectedVerticesFrontierOmpW(vaff, x, deletions, insertions, vcom); };
-  auto fa = [](auto u) { return true; };
+  vector<B> vertices(x.span());
+  auto fm = [&](auto& vaff) { louvainAffectedVerticesFrontierOmpW(vertices, x, deletions, insertions, vcom); copyValuesOmpW(vaff, vertices); };
+  auto fa = [&](auto u) { return vertices[u] == B(1); };
   return louvainOmp<FLAG>(x, q, o, fm, fa);
 }
 #endif
