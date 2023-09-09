@@ -6,7 +6,7 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
-#include "src/main.hxx"
+#include "inc/main.hxx"
 
 using namespace std;
 
