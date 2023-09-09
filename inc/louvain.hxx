@@ -1277,7 +1277,7 @@ inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vecto
 
 
 /**
- * Obtain the community membership of each vertex with Dynamic Frontier Louvain.
+ * Obtain the community membership of each vertex with Dynamic Delta-screening Louvain.
  * @param y updated graph
  * @param deletions edge deletions in batch update
  * @param insertions edge insertions in batch update
@@ -1299,7 +1299,7 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K>>& 
   louvainVertexWeightsW(vtot, y);
   louvainCommunityWeightsW(ctot, y, vcom, vtot);
   auto fm = [&](auto& vaff) {
-    louvainAffectedVerticesDeltaScreeningW(vcs, vcout, vertices, neighbors, communities, y, deletions, insertions, vcom, vtot, ctot, M, R);
+    louvainAffectedVerticesDeltaScreeningW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesW(vaff, vertices);
     vcs.clear(); vcout.clear();
   };
@@ -1310,7 +1310,7 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K>>& 
 
 #ifdef OPENMP
 /**
- * Obtain the community membership of each vertex with Dynamic Frontier Louvain.
+ * Obtain the community membership of each vertex with Dynamic Delta-screening Louvain.
  * @param y updated graph
  * @param deletions edge deletions in batch update
  * @param insertions edge insertions in batch update
@@ -1335,7 +1335,7 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K>
   louvainVertexWeightsOmpW(vtot, y);
   louvainCommunityWeightsOmpW(ctot, y, vcom, vtot);
   auto fm = [&](auto& vaff) {
-    louvainAffectedVerticesDeltaScreeningOmpW(vcs, vcout, vertices, neighbors, communities, y, deletions, insertions, vcom, vtot, ctot, M, R);
+    louvainAffectedVerticesDeltaScreeningOmpW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesOmpW(vaff, vertices);
     louvainFreeHashtablesW(vcs, vcout);
   };

@@ -45,7 +45,7 @@ using namespace std;
  * @returns modularity
  */
 template <class G, class K>
-inline double getModularity(const G& x, const RakResult<K>& a, double M) {
+inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
   return modularityBy(x, fc, M, 1.0);
 }
@@ -85,16 +85,44 @@ inline void runBatches(const G& x, R& rnd, F fn) {
 
 
 /**
+ * Run a function on each number of threads, for a specific epoch.
+ * @param epoch epoch number
+ * @param fn function to run on each number of threads
+ */
+template <class F>
+inline void runThreadsWithBatch(int epoch, F fn) {
+  int t = NUM_THREADS_BEGIN;
+  for (int l=0; l<epoch && t<=NUM_THREADS_END; ++l)
+    t NUM_THREADS_STEP;
+  omp_set_num_threads(t);
+  fn(t);
+  omp_set_num_threads(MAX_THREADS);
+}
+
+
+/**
  * Run a function on each number of threads, with a specified range of thread counts.
  * @param fn function to run on each number of threads
  */
 template <class F>
-inline void runThreads(F fn) {
+inline void runThreadsAll(F fn) {
   for (int t=NUM_THREADS_BEGIN; t<=NUM_THREADS_END; t NUM_THREADS_STEP) {
     omp_set_num_threads(t);
     fn(t);
     omp_set_num_threads(MAX_THREADS);
   }
+}
+
+
+/**
+ * Run a function on each number of threads, with a specified range of thread counts or for a specific epoch (depending on NUM_THREADS_MODE).
+ * @param epoch epoch number
+ * @param fn function to run on each number of threads
+ */
+template <class F>
+inline void runThreads(int epoch, F fn) {
+  if (NUM_THREADS_MODE=="with-batch") runThreadsWithBatch(epoch, fn);
+  else runThreadsAll(fn);
 }
 #pragma endregion
 
@@ -120,10 +148,10 @@ void runExperiment(const G& x) {
   auto glog = [&](const auto& ans, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
     printf(
       "{-%.3e/+%.3e batchf, %03d threads} -> "
-      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e affected, %04d iters, %03d passes, %01.9f modularity} %s\n",
+      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %04d iters, %03d passes, %01.9f modularity} %s\n",
       double(deletionsf), double(insertionsf), numThreads,
       ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
-      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(y, ans, M), technique
+      ans.iterations, ans.passes, getModularity(y, ans, M), technique
     );
   };
   // Get community memberships on original graph (static).
