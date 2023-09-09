@@ -13,106 +13,57 @@ using namespace std;
 
 
 
-// Fixed config
+#pragma region CONFIGURATION
 #ifndef TYPE
+/** Type of edge weights. */
 #define TYPE float
 #endif
 #ifndef MAX_THREADS
+/** Maximum number of threads to use. */
 #define MAX_THREADS 64
 #endif
 #ifndef REPEAT_BATCH
+/** Number of times to repeat each batch. */
 #define REPEAT_BATCH 5
 #endif
 #ifndef REPEAT_METHOD
+/** Number of times to repeat each method. */
 #define REPEAT_METHOD 1
 #endif
+#pragma endregion
 
 
 
 
-// HELPERS
-// -------
-
+#pragma region METHODS
+#pragma region HELPERS
+/**
+ * Obtain the modularity of community structure on a graph.
+ * @param x original graph
+ * @param a rak result
+ * @param M sum of edge weights
+ * @returns modularity
+ */
 template <class G, class K>
-inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
+inline double getModularity(const G& x, const RakResult<K>& a, double M) {
   auto fc = [&](auto u) { return a.membership[u]; };
   return modularityBy(x, fc, M, 1.0);
 }
+#pragma endregion
 
 
 
 
-// GENERATE BATCH
-// --------------
-
-template <class G, class R>
-inline auto addRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
-  using K = typename G::key_type;
-  using V = typename G::edge_value_type;
-  int retries = 5;
-  vector<tuple<K, K, V>> insertions;
-  auto fe = [&](auto u, auto v, auto w) {
-    a.addEdge(u, v, w);
-    a.addEdge(v, u, w);
-    insertions.push_back(make_tuple(u, v, w));
-    insertions.push_back(make_tuple(v, u, w));
-    return true;
-  };
-  for (size_t l=0; l<batchSize; ++l)
-    retry([&]() { return addRandomEdge(a, rnd, i, n, V(1), fe); }, retries);
-  updateOmpU(a);
-  return insertions;
-}
-
-
-template <class G, class R>
-auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
-  using K = typename G::key_type;
-  int retries = 5;
-  vector<tuple<K, K>> deletions;
-  auto fe = [&](auto u, auto v) {
-    a.removeEdge(u, v);
-    a.removeEdge(v, u);
-    deletions.push_back(make_tuple(u, v));
-    deletions.push_back(make_tuple(v, u));
-    return true;
-  };
-  for (size_t l=0; l<batchSize; ++l)
-    retry([&]() { return removeRandomEdge(a, rnd, i, n, fe); }, retries);
-  updateOmpU(a);
-  return deletions;
-}
-
-
-
-
-// PERFORM EXPERIMENT
-// ------------------
-
+#pragma region EXPERIMENTAL SETUP
+/**
+ * Run a function on each batch update, with a specified range of batch sizes.
+ * @param x original graph
+ * @param rnd random number generator
+ * @param fn function to run on each batch update
+ */
 template <class G, class R, class F>
-inline void runAbsoluteBatches(const G& x, R& rnd, F fn) {
-  size_t d = BATCH_DELETIONS_BEGIN;
-  size_t i = BATCH_INSERTIONS_BEGIN;
-  for (int epoch=0;; ++epoch) {
-    for (int r=0; r<REPEAT_BATCH; ++r) {
-      auto y  = duplicate(x);
-      for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
-      auto deletions  = removeRandomEdges(y, rnd, d, 1, x.span()-1);
-      auto insertions = addRandomEdges   (y, rnd, i, 1, x.span()-1);
-        fn(y, d, deletions, i, insertions, sequence, epoch);
-      }
-    }
-    if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
-    d BATCH_DELETIONS_STEP;
-    i BATCH_INSERTIONS_STEP;
-    d = min(d, size_t(BATCH_DELETIONS_END));
-    i = min(i, size_t(BATCH_INSERTIONS_END));
-  }
-}
-
-
-template <class G, class R, class F>
-inline void runRelativeBatches(const G& x, R& rnd, F fn) {
+inline void runBatches(const G& x, R& rnd, F fn) {
+  using  E = typename G::edge_value_type;
   double d = BATCH_DELETIONS_BEGIN;
   double i = BATCH_INSERTIONS_BEGIN;
   for (int epoch=0;; ++epoch) {
@@ -120,7 +71,7 @@ inline void runRelativeBatches(const G& x, R& rnd, F fn) {
       auto y  = duplicate(x);
       for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
       auto deletions  = removeRandomEdges(y, rnd, size_t(d * x.size()/2), 1, x.span()-1);
-      auto insertions = addRandomEdges   (y, rnd, size_t(i * x.size()/2), 1, x.span()-1);
+      auto insertions = addRandomEdges   (y, rnd, size_t(i * x.size()/2), 1, x.span()-1, E(1));
         fn(y, d, deletions, i, insertions, sequence, epoch);
       }
     }
@@ -133,41 +84,28 @@ inline void runRelativeBatches(const G& x, R& rnd, F fn) {
 }
 
 
-template <class G, class R, class F>
-inline void runBatches(const G& x, R& rnd, F fn) {
-  if (BATCH_UNIT=="%") runRelativeBatches(x, rnd, fn);
-  else runAbsoluteBatches(x, rnd, fn);
-}
-
-
+/**
+ * Run a function on each number of threads, with a specified range of thread counts.
+ * @param fn function to run on each number of threads
+ */
 template <class F>
-inline void runThreadsWithBatch(int epoch, F fn) {
-  int t = NUM_THREADS_BEGIN;
-  for (int l=0; l<epoch && t<=NUM_THREADS_END; ++l)
-    t NUM_THREADS_STEP;
-  omp_set_num_threads(t);
-  fn(t);
-  omp_set_num_threads(MAX_THREADS);
-}
-
-
-template <class F>
-inline void runThreadsAll(F fn) {
+inline void runThreads(F fn) {
   for (int t=NUM_THREADS_BEGIN; t<=NUM_THREADS_END; t NUM_THREADS_STEP) {
     omp_set_num_threads(t);
     fn(t);
     omp_set_num_threads(MAX_THREADS);
   }
 }
+#pragma endregion
 
 
-template <class F>
-inline void runThreads(int epoch, F fn) {
-  if (NUM_THREADS_MODE=="with-batch") runThreadsWithBatch(epoch, fn);
-  else runThreadsAll(fn);
-}
 
 
+#pragma region PERFORM EXPERIMENT
+/**
+ * Perform the experiment.
+ * @param x original graph
+ */
 template <class G>
 void runExperiment(const G& x) {
   using K = typename G::key_type;
@@ -235,6 +173,12 @@ void runExperiment(const G& x) {
 }
 
 
+/**
+ * Main function.
+ * @param argc argument count
+ * @param argv argument values
+ * @returns zero on success, non-zero on failure
+ */
 int main(int argc, char **argv) {
   using K = uint32_t;
   using V = TYPE;
@@ -252,3 +196,5 @@ int main(int argc, char **argv) {
   printf("\n");
   return 0;
 }
+#pragma endregion
+#pragma endregion
