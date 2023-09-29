@@ -1,69 +1,34 @@
 Design of OpenMP-based Dynamic [Louvain algorithm] for [community detection].
 
-[Louvain algorithm] is an **agglomerative-hierarchical** community detection
-method that **greedily optimizes** for [modularity]. Given an *undirected*
-*weighted graph*, all vertices are first considered to be *their own*
-*communities*. In the **first phase**, each vertex greedily decides to move to
-the community of one of its neighbors which gives greatest increase in
-modularity. If moving to no neighbor's community leads to an increase in
-modularity, the vertex chooses to stay with its own community. This is done
-sequentially for all the vertices. If the total change in modularity is more
-than a certain threshold, this phase is repeated. Once this **local-moving**
-**phase** is complete, all vertices have formed their first hierarchy of
-communities. The **next phase** is called the **aggregation phase**, where all
-the *vertices belonging to a community* are *collapsed* into a single
-**super-vertex**, such that edges between communities are represented as edges
-between respective super-vertices (edge weights are combined), and edges within
-each community are represented as self-loops in respective super-vertices
-(again, edge weights are combined). Together, the local-moving and the
-aggregation phases constitute a **pass**. This super-vertex graph is then used
-as input for the next pass. This process continues until the increase in
-modularity is below a certain threshold. As a result from each pass, we have a
-*hierarchy of community memberships* for each vertex as a **dendrogram**. We
-generally consider the *top-level hierarchy* as the *final result* of community
-detection process.
+This is an implementation of the popular [Louvain algorithm]. It is an
+**agglomerative-hierarchical** community detection method that *greedily*
+*optimizes* for [modularity]. Given an undirected weighted graph, all
+vertices are first considered to be their own communities. In the
+**local-moving phase**, each vertex greedily decides to move to the community of
+one of its neighbors which gives greatest increase in modularity (multiple
+iterations). In the **aggregation phase**, all vertices belonging to a
+community* are *collapsed* into a single *super-vertex*. This super-vertex
+graph is then used as input for the next pass. The process continues until the
+increase in modularity is below a certain threshold. As a result from each pass,
+we have a *hierarchy of community memberships* for each vertex as a
+**dendrogram**. See [extended report] for details. For HIPC2023 submission, see
+[submission-hipc23].
 
-*Louvain* algorithm is a hierarchical algorithm, and thus has two different
-tolerance parameters: `tolerance` and `passTolerance`. **tolerance** defines the
-minimum amount of increase in modularity expected, until the local-moving phase
-of the algorithm is considered to have converged. We compare the increase in
-modularity in each iteration of the local-moving phase to see if it is below
-`tolerance`. **passTolerance** defines the minimum amount of increase in
-modularity expected, until the entire algorithm is considered to have converged.
-We compare the increase in modularity across all iterations of the local-moving
-phase in the current pass to see if it is below `passTolerance`. `passTolerance`
-is normally set to `0` (we want to maximize our modularity gain), but the same
-thing does not apply for `tolerance`. Adjusting values of `tolerance` between
-each pass have been observed to impact the runtime of the algorithm, without
-significantly affecting the modularity of obtained communities. In this
-experiment, we compare the performance of *three different types* of OpenMP-based
-**dynamic Louvain** with respect to the *static* version.
-
-**Naive-dynamic**:
-- We start with previous community membership of each vertex (instead of each vertex its own community).
-
-**Dynamic Delta-screening**:
-- All edge batches are undirected, and sorted by source vertex-id.
-- For edge deletions within the same community `i` and `j`,
-  `i`'s neighbors and `j`'s community is marked as affected.
-- For edge insertions across communities with source vertex `i` and highest modularity changing edge vertex `j*`,
-  `i`'s neighbors and `j*`'s community is marked as affected.
-
-**Dynamic Frontier**:
-- All edge batches are undirected.
-- For edge deletions within the same community `i` and `j`,
-  `i` is marked as affected.
-- For edge insertions across communities with source vertex `i` and destination vertex `j`,
-  `i` is marked as affected.
-- Vertices whose communities change in local-moving phase have their neighbors marked as affected.
+There are three different dynamic approaches we are trying out:
+- **Naive-dynamic**: We simply use the previous community memberships and perform the algorithm.
+- **Dynamic Delta-screening**: We find a set of affected vertices as per the [Delta-screening] paper.
+- **Dyanmic Frontier**: We mark endpoints of each vertex as affected, and expand out iteratively.
 
 The input data used for below experiments is available from the [SuiteSparse Matrix Collection].
 The experiments were done with guidance from [Prof. Kishore Kothapalli] and
 [Prof. Dip Sankar Banerjee].
 
 [Louvain algorithm]: https://en.wikipedia.org/wiki/Louvain_method
+[extended report]: https://gist.github.com/wolfram77/91b2d2ac50b9aba6b203e88b291c7671
+[submission-hipc23]: https://github.com/puzzlef/louvain-communities-openmp-dynamic/tree/submission-hipc23
 [community detection]: https://en.wikipedia.org/wiki/Community_search
 [modularity]: https://en.wikipedia.org/wiki/Modularity_(networks)
+[Delta-screening]: https://ieeexplore.ieee.org/document/9384277
 [Prof. Dip Sankar Banerjee]: https://sites.google.com/site/dipsankarban/
 [Prof. Kishore Kothapalli]: https://faculty.iiit.ac.in/~kkishore/
 [SuiteSparse Matrix Collection]: https://sparse.tamu.edu
@@ -212,6 +177,8 @@ $ DOWNLOAD=0 ./mains.sh
 # Perform comparision on large graphs with custom number of threads
 $ DOWNLOAD=0 MAX_THREADS=4 ./mains.sh
 ```
+
+[input-large]: https://github.com/puzzlef/louvain-communities-openmp-dynamic/tree/input-large
 
 
 <br>
