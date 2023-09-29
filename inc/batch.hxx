@@ -21,7 +21,7 @@ using std::make_tuple;
  * @param i begin vertex
  * @param n number of vertices (range)
  * @param w edge weight
- * @param fe callback function to add edge
+ * @param fe callback function to add edge (u, v, w)
  * @returns true if edge was added
  */
 template <class G, class R, class V, class FE>
@@ -59,7 +59,7 @@ inline bool addRandomEdge(G& a, R& rnd, size_t i, size_t n, V w) {
  * @param x input graph
  * @param rnd random number generator
  * @param u source vertex
- * @param fe callback function to remove edge
+ * @param fe callback function to remove edge (u, v, w)
  * @returns true if edge was removed
  */
 template <class G, class R, class K, class FE>
@@ -68,9 +68,9 @@ inline bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
   if (x.degree(u) == 0) return false;
   K vi = K(dis(rnd) * x.degree(u)), i = 0;
   bool removed = false, skip = false;
-  x.forEachEdgeKey(u, [&](auto v) {
+  x.forEachEdge(u, [&](auto v, auto w) {
     if (skip) return;
-    if (i++ == vi) { removed = fe(u, v); skip = true; }
+    if (i++ == vi) { removed = fe(u, v, w); skip = true; }
   });
   return removed;
 }
@@ -85,7 +85,7 @@ inline bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
  */
 template <class G, class R, class K>
 inline bool removeRandomEdgeFrom(G& a, R& rnd, K u) {
-  auto fe = [&](auto u, auto v) { a.removeEdge(u, v); return true; };
+  auto fe = [&](auto u, auto v, auto w) { a.removeEdge(u, v); return true; };
   return removeRandomEdgeFrom(a, rnd, u, fe);
 }
 
@@ -96,7 +96,7 @@ inline bool removeRandomEdgeFrom(G& a, R& rnd, K u) {
  * @param rnd random number generator
  * @param i begin vertex
  * @param n number of vertices (range)
- * @param fe callback function to remove edge
+ * @param fe callback function to remove edge (u, v, w)
  * @returns true if edge was removed
  */
 template <class G, class R, class FE>
@@ -118,7 +118,7 @@ inline bool removeRandomEdge(const G& x, R& rnd, size_t i, size_t n, FE fe) {
  */
 template <class G, class R>
 inline bool removeRandomEdge(G& a, R& rnd, size_t i, size_t n) {
-  auto fe = [&](auto u, auto v) { a.removeEdge(u, v); return true; };
+  auto fe = [&](auto u, auto v, auto w) { a.removeEdge(u, v); return true; };
   return removeRandomEdge(a, rnd, i, n, fe);
 }
 #pragma endregion
@@ -166,11 +166,12 @@ inline auto addRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n, V
 template <class G, class R>
 inline auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
   using K = typename G::key_type;
+  using V = typename G::edge_value_type;
   int retries = 5;
-  vector<tuple<K, K>> deletions;
-  auto fe = [&](auto u, auto v) {
+  vector<tuple<K, K, V>> deletions;
+  auto fe = [&](auto u, auto v, auto w) {
     a.removeEdge(u, v);
-    deletions.push_back(make_tuple(u, v));
+    deletions.push_back(make_tuple(u, v, w));
     return true;
   };
   for (size_t l=0; l<batchSize; ++l)

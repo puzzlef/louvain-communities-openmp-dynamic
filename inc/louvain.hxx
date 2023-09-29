@@ -1187,7 +1187,7 @@ inline auto louvainStaticOmp(const G& x, const vector<K>* q=nullptr, const Louva
  * @param R resolution (0, 1]
  */
 template <class B, class G, class K, class V, class W>
-inline auto louvainAffectedVerticesDeltaScreeningW(vector<B>& vertices, vector<B>& neighbors, vector<B>& communities, vector<K>& vcs, vector<W>& vcout, const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
+inline auto louvainAffectedVerticesDeltaScreeningW(vector<B>& vertices, vector<B>& neighbors, vector<B>& communities, vector<K>& vcs, vector<W>& vcout, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
   fillValueU(vertices,    B());
   fillValueU(neighbors,   B());
   fillValueU(communities, B());
@@ -1237,7 +1237,7 @@ inline auto louvainAffectedVerticesDeltaScreeningW(vector<B>& vertices, vector<B
  * @param R resolution (0, 1]
  */
 template <class B, class G, class K, class V, class W>
-inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vector<B>& neighbors, vector<B>& communities, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
+inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vector<B>& neighbors, vector<B>& communities, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom, const vector<W>& vtot, const vector<W>& ctot, double M, double R=1) {
   size_t S = y.span();
   size_t D = deletions.size();
   size_t I = insertions.size();
@@ -1298,7 +1298,7 @@ inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vecto
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V>
-inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   using  B = FLAG;
   size_t S = y.span();
@@ -1329,7 +1329,7 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K>>& 
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V>
-inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   using  W = LOUVAIN_WEIGHT_TYPE;
   using  B = FLAG;
   size_t S = y.span();
@@ -1364,7 +1364,7 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K>
  * @param vcom community each vertex belongs to
  */
 template <class B, class G, class K, class V>
-inline void louvainAffectedVerticesFrontierW(vector<B>& vertices, const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+inline void louvainAffectedVerticesFrontierW(vector<B>& vertices, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
   fillValueU(vertices, B());
   for (const auto& [u, v] : deletions) {
     if (vcom[u] != vcom[v]) continue;
@@ -1388,7 +1388,7 @@ inline void louvainAffectedVerticesFrontierW(vector<B>& vertices, const G& y, co
  * @returns flags for each vertex marking whether it is affected
  */
 template <class B, class G, class K, class V>
-inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
   fillValueOmpU(vertices, B());
   size_t D = deletions.size();
   size_t I = insertions.size();
@@ -1422,7 +1422,7 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y,
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V>
-inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
     louvainAffectedVerticesFrontierW(vaff, y, deletions, insertions, vcom);
@@ -1443,7 +1443,7 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K>>& deleti
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V>
-inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
     louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom);
