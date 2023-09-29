@@ -148,9 +148,9 @@ void runExperiment(const G& x) {
   auto glog = [&](const auto& ans, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
     printf(
       "{-%.3e/+%.3e batchf, %03d threads} -> "
-      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %04d iters, %03d passes, %01.9f modularity} %s\n",
+      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity} %s\n",
       double(deletionsf), double(insertionsf), numThreads,
-      ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
+      ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime, double(ans.affectedVertices),
       ans.iterations, ans.passes, getModularity(y, ans, M), technique
     );
   };

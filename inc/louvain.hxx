@@ -92,6 +92,8 @@ struct LouvainResult {
   float localMoveTime;
   /** Time spent in milliseconds in aggregation phase. */
   float aggregationTime;
+  /** Number of vertices initially marked as affected. */
+  size_t affectedVertices;
   #pragma endregion
 
 
@@ -106,9 +108,10 @@ struct LouvainResult {
    * @param firstPassTime time spent in milliseconds in first pass
    * @param localMoveTime time spent in milliseconds in local-moving phase
    * @param aggregationTime time spent in milliseconds in aggregation phase
+   * @param affectedVertices number of vertices initially marked as affected
    */
-  LouvainResult(vector<K>&& membership, int iterations=0, int passes=0, float time=0, float preprocessingTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0) :
-  membership(membership), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime) {}
+  LouvainResult(vector<K>&& membership, int iterations=0, int passes=0, float time=0, float preprocessingTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
+  membership(membership), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
 
 
   /**
@@ -121,9 +124,10 @@ struct LouvainResult {
    * @param firstPassTime time spent in milliseconds in first pass
    * @param localMoveTime time spent in milliseconds in local-moving phase
    * @param aggregationTime time spent in milliseconds in aggregation phase
+   * @param affectedVertices number of vertices initially marked as affected
    */
-  LouvainResult(vector<K>& membership, int iterations=0, int passes=0, float time=0, float preprocessingTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0) :
-  membership(move(membership)), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime) {}
+  LouvainResult(vector<K>& membership, int iterations=0, int passes=0, float time=0, float preprocessingTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
+  membership(move(membership)), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
   #pragma endregion
 };
 #pragma endregion
@@ -956,6 +960,10 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
   DiGraphCsr<K, None, None, K> cv(S, S);
   DiGraphCsr<K, None, W> y(S, Y);  // y(S, X)
   DiGraphCsr<K, None, W> z(S, Z);  // z(S, X)
+  // Count affected vertices.
+  fm(vaff);
+  size_t NA = countValue(vaff, B(1));
+  // Perform Louvain algorithm.
   float tm = 0, tp = 0, tl = 0, ta = 0;
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
@@ -1015,7 +1023,7 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
       tp += duration(t0, t1);
     });
   }, o.repeat);
-  return LouvainResult<K>(a, l, p, t, tm/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat);
+  return LouvainResult<K>(a, l, p, t, tm/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, NA);
 }
 
 
@@ -1053,6 +1061,10 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
   DiGraphCsr<K, None, None, K> cv(S, S);
   DiGraphCsr<K, None, W> y(S, Y);  // y(S, X)
   DiGraphCsr<K, None, W> z(S, Z);  // z(S, X)
+  // Count affected vertices.
+  fm(vaff);
+  size_t NA = countValueOmp(vaff, B(1));
+  // Perform Louvain algorithm.
   float tm = 0, tp = 0, tl = 0, ta = 0;
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
@@ -1113,7 +1125,7 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
     });
   }, o.repeat);
   louvainFreeHashtablesW(vcs, vcout);
-  return LouvainResult<K>(a, l, p, t, tm/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat);
+  return LouvainResult<K>(a, l, p, t, tm/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, NA);
 }
 #endif
 #pragma endregion
