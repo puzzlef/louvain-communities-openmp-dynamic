@@ -150,7 +150,7 @@ template <class G, class K, class V>
 inline void filterEdgesByExistenceU(vector<tuple<K, K, V>>& edges, const G& x, bool exists) {
   auto ft = [&](const auto& e) {
     auto [u, v, w] = e;
-    return x.hasEdge(u, v) == exists;
+    return x.hasEdge(u, v) != exists;
   };
   auto it = remove_if(edges.begin(), edges.end(), ft);
   edges.erase(it, edges.end());
