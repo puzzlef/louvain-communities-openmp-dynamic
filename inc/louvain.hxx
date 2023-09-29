@@ -961,7 +961,7 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
   DiGraphCsr<K, None, W> y(S, Y);  // y(S, X)
   DiGraphCsr<K, None, W> z(S, Z);  // z(S, X)
   // Count affected vertices.
-  fm(vaff);
+  fm(vaff, vcs, vcout);
   size_t NA = countValue(vaff, B(1));
   // Perform Louvain algorithm.
   float tm = 0, tp = 0, tl = 0, ta = 0;
@@ -976,7 +976,7 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
     y .respan(S);
     z .respan(S);
     mark([&]() {
-      tm += measureDuration([&]() { fm(vaff); });
+      tm += measureDuration([&]() { fm(vaff, vcs, vcout); });
       auto t0 = timeNow(), t1 = t0;
       louvainVertexWeightsW(vtot, x);
       if (q) louvainInitializeFromW(vcom, ctot, x, vtot, *q);
@@ -1062,7 +1062,7 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
   DiGraphCsr<K, None, W> y(S, Y);  // y(S, X)
   DiGraphCsr<K, None, W> z(S, Z);  // z(S, X)
   // Count affected vertices.
-  fm(vaff);
+  fm(vaff, vcs, vcout);
   size_t NA = countValueOmp(vaff, B(1));
   // Perform Louvain algorithm.
   float tm = 0, tp = 0, tl = 0, ta = 0;
@@ -1077,7 +1077,7 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
     y .respan(S);
     z .respan(S);
     mark([&]() {
-      tm += measureDuration([&]() { fm(vaff); });
+      tm += measureDuration([&]() { fm(vaff, vcs, vcout); });
       auto t0 = timeNow(), t1 = t0;
       louvainVertexWeightsOmpW(vtot, x);
       if (q) louvainInitializeFromOmpW(vcom, ctot, x, vtot, *q);
@@ -1143,7 +1143,7 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
  */
 template <class FLAG=char, class G, class K>
 inline auto louvainStatic(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
-  auto fm = [](auto& vaff) { fillValueU(vaff, FLAG(1)); };
+  auto fm = [](auto& vaff, auto& vcs, auto& vcout) { fillValueU(vaff, FLAG(1)); };
   auto fa = [](auto u) { return true; };
   return louvainInvoke<FLAG>(x, q, o, fm, fa);
 }
@@ -1159,7 +1159,7 @@ inline auto louvainStatic(const G& x, const vector<K>* q=nullptr, const LouvainO
  */
 template <class FLAG=char, class G, class K>
 inline auto louvainStaticOmp(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
-  auto fm = [](auto& vaff) { fillValueOmpU(vaff, FLAG(1)); };
+  auto fm = [](auto& vaff, auto& vcs, auto& vcout) { fillValueOmpU(vaff, FLAG(1)); };
   auto fa = [](auto u) { return true; };
   return louvainInvokeOmp<FLAG>(x, q, o, fm, fa);
 }
@@ -1306,14 +1306,12 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K>>& 
   double M = edgeWeight(y)/2;
   const vector<K>& vcom = *q;
   vector<V> vtot(S), ctot(S);
-  vector<K> vcs; vector<W> vcout(S);
   vector<B> vertices(S), neighbors(S), communities(S);
   louvainVertexWeightsW(vtot, y);
   louvainCommunityWeightsW(ctot, y, vcom, vtot);
-  auto fm = [&](auto& vaff) {
+  auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
     louvainAffectedVerticesDeltaScreeningW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesW(vaff, vertices);
-    vcs.clear(); vcout.clear();
   };
   auto fa = [&](auto u) { return vertices[u] == B(1); };
   return louvainInvoke<FLAG>(y, q, o, fm, fa);
@@ -1341,15 +1339,11 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K>
   const vector<K>& vcom = *q;
   vector<W> vtot(S), ctot(S);
   vector<B> vertices(S), neighbors(S), communities(S);
-  vector<vector<K>*> vcs(T);
-  vector<vector<W>*> vcout(T);
-  louvainAllocateHashtablesW(vcs, vcout, S);
   louvainVertexWeightsOmpW(vtot, y);
   louvainCommunityWeightsOmpW(ctot, y, vcom, vtot);
-  auto fm = [&](auto& vaff) {
+  auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
     louvainAffectedVerticesDeltaScreeningOmpW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesOmpW(vaff, vertices);
-    louvainFreeHashtablesW(vcs, vcout);
   };
   auto fa = [&](auto u) { return vertices[u] == B(1); };
   return louvainInvokeOmp<FLAG>(y, q, o, fm, fa);
@@ -1430,7 +1424,9 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y,
 template <class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
-  auto fm = [&](auto& vaff) { louvainAffectedVerticesFrontierW(vaff, y, deletions, insertions, vcom); };
+  auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
+    louvainAffectedVerticesFrontierW(vaff, y, deletions, insertions, vcom);
+  };
   auto fa = [](auto u) { return true; };
   return louvainInvoke<FLAG>(y, q, o, fm, fa);
 }
@@ -1449,7 +1445,9 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K>>& deleti
 template <class FLAG=char, class G, class K, class V>
 inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
-  auto fm = [&](auto& vaff) { louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom); };
+  auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
+    louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom);
+  };
   auto fa = [](auto u) { return true; };
   return louvainInvokeOmp<FLAG>(y, q, o, fm, fa);
 }
