@@ -1,6 +1,7 @@
 #include <tuple>
 #include <vector>
 #include <random>
+#include <algorithm>
 #include "_main.hxx"
 #include "update.hxx"
 
@@ -8,6 +9,9 @@ using std::tuple;
 using std::vector;
 using std::uniform_real_distribution;
 using std::make_tuple;
+using std::sort;
+using std::unique;
+using std::remove_if;
 
 
 
@@ -178,6 +182,75 @@ inline auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n
     retry([&]() { return removeRandomEdge(a, rnd, i, n, fe); }, retries);
   updateOmpU(a);
   return deletions;
+}
+#pragma endregion
+
+
+
+
+#pragma region TIDY BATCH
+/**
+ * Filter out edges in batch update by existence.
+ * @param edges edges in batch update (updated)
+ * @param x original graph
+ * @param exists true to keep existing edges, false to keep non-existing edges
+ */
+template <class G, class K, class V>
+inline void filterEdgesByExistenceU(vector<tuple<K, K, V>>& edges, const G& x, bool exists) {
+  auto ft = [&](const auto& e) {
+    auto [u, v, w] = e;
+    return x.hasEdge(u, v) == exists;
+  };
+  auto it = remove_if(edges.begin(), edges.end(), ft);
+  edges.erase(it, edges.end());
+}
+
+
+/**
+ * Sort edges in batch update by source/destination vertex.
+ * @param edges edges in batch update (updated)
+ */
+template <class K, class V>
+inline void sortEdgesByIdU(vector<tuple<K, K, V>>& edges) {
+  auto fl = [](const auto& a, const auto& b) {
+    auto [u1, v1, w1] = a;
+    auto [u2, v2, w2] = b;
+    return u1 < u2 || (u1 == u2 && v1 < v2);
+  };
+  sort(edges.begin(), edges.end(), fl);
+}
+
+
+/**
+ * Keep only unique edges in batch update.
+ * @param edges edges in batch update (updated)
+ */
+template <class K, class V>
+inline void uniqueEdgesU(vector<tuple<K, K, V>>& edges) {
+  auto fe = [](const auto& a, const auto& b) {
+    auto [u1, v1, w1] = a;
+    auto [u2, v2, w2] = b;
+    return u1 == u2 && v1 == v2;
+  };
+  auto it = unique(edges.begin(), edges.end(), fe);
+  edges.erase(it, edges.end());
+}
+
+
+/**
+ * Filter out edges in batch update by existence, sort by source/destination vertex, and keep only unique edges.
+ * @param deletions edge deletions in batch update (updated)
+ * @param insertions edge insertions in batch update (updated)
+ * @param x original graph
+ */
+template <class G, class K, class V>
+inline void tidyBatchUpdateU(vector<tuple<K, K, V>>& deletions, vector<tuple<K, K, V>>& insertions, const G& x) {
+  filterEdgesByExistenceU(deletions,  x, true);
+  filterEdgesByExistenceU(insertions, x, false);
+  sortEdgesByIdU(deletions);
+  sortEdgesByIdU(insertions);
+  uniqueEdgesU(deletions);
+  uniqueEdgesU(insertions);
 }
 #pragma endregion
 #pragma endregion
