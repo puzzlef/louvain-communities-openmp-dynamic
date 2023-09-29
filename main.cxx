@@ -140,6 +140,7 @@ template <class G>
 void runExperiment(const G& x) {
   using K = typename G::key_type;
   using V = typename G::edge_value_type;
+  using W = LOUVAIN_WEIGHT_TYPE;
   random_device dev;
   default_random_engine rnd(dev());
   int repeat  = REPEAT_METHOD;
@@ -161,10 +162,12 @@ void runExperiment(const G& x) {
   glog(b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
   #if BATCH_LENGTH>1
   vector<K> B2, B3, B4;
+  vector<W> VW;
   #else
   const auto& B2 = b0.membership;
   const auto& B3 = b0.membership;
   const auto& B4 = b0.membership;
+  const auto& VW = b0.totalWeight;
   #endif
   // Get community memberships on updated graph (dynamic).
   runBatches(x, rnd, [&](const auto& y, auto deletionsf, const auto& deletions, auto insertionsf, const auto& insertions, int sequence, int epoch) {
@@ -174,6 +177,7 @@ void runExperiment(const G& x) {
       B2 = b0.membership;
       B3 = b0.membership;
       B4 = b0.membership;
+      VW = b0.totalWeight;
     }
     #endif
     // Adjust number of threads.
@@ -188,15 +192,16 @@ void runExperiment(const G& x) {
       auto b2 = louvainStaticOmp(y, &B2, {repeat});
       flog(b2, "louvainNaiveDynamicOmp");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, {repeat});
+      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, &VW, {repeat});
       flog(b4, "louvainDynamicFrontierOmp");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, {repeat});
+      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, &VW, {repeat});
       flog(b3, "louvainDynamicDeltaScreeningOmp");
       #if BATCH_LENGTH>1
       B2 = b2.membership;
       B3 = b3.membership;
       B4 = b4.membership;
+      VW = b1.totalWeight;
       #endif
     });
   });
