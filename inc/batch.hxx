@@ -17,57 +17,17 @@ using std::remove_if;
 
 
 #pragma region METHODS
-#pragma region ADD RANDOM EDGE
-/**
- * Randomly decide upon a edge that may be added to a graph.
- * @param x input graph
- * @param rnd random number generator
- * @param i begin vertex
- * @param n number of vertices (range)
- * @param w edge weight
- * @param fe callback function to add edge (u, v, w)
- * @returns true if edge was added
- */
-template <class G, class R, class V, class FE>
-inline bool addRandomEdge(const G& x, R& rnd, size_t i, size_t n, V w, FE fe) {
-  using K = typename G::key_type;
-  uniform_real_distribution<> dis(0.0, 1.0);
-  K u = K(i + n*dis(rnd));
-  K v = K(i + n*dis(rnd));
-  return fe(u, v, w);
-}
-
-
-/**
- * Add a random edge to a graph.
- * @param a graph to add edge to (updated)
- * @param rnd random number generator
- * @param i begin vertex
- * @param n number of vertices (range)
- * @param w edge weight
- * @returns true if edge was added
- */
-template <class G, class R, class V>
-inline bool addRandomEdge(G& a, R& rnd, size_t i, size_t n, V w) {
-  auto fe = [&](auto u, auto v, auto w) { a.addEdge(u, v, w); return true; };
-  return addRandomEdge(a, rnd, i, n, w, fe);
-}
-#pragma endregion
-
-
-
-
 #pragma region REMOVE RANDOM EDGE
 /**
  * Randomly decide upon a edge that may be removed from a graph, from a given source vertex.
+ * @param rnd random number generator (updated)
  * @param x input graph
- * @param rnd random number generator
  * @param u source vertex
  * @param fe callback function to remove edge (u, v, w)
  * @returns true if edge was removed
  */
-template <class G, class R, class K, class FE>
-inline bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
+template <class R, class G, class K, class FE>
+inline bool removeRandomEdgeFrom(R& rnd, const G& x, K u, FE fe) {
   uniform_real_distribution<> dis(0.0, 1.0);
   if (x.degree(u) == 0) return false;
   K vi = K(dis(rnd) * x.degree(u)), i = 0;
@@ -81,49 +41,44 @@ inline bool removeRandomEdgeFrom(const G& x, R& rnd, K u, FE fe) {
 
 
 /**
- * Remove a random edge from a graph, from a given source vertex.
- * @param a graph to remove edge from (updated)
- * @param rnd random number generator
- * @param u source vertex
- * @returns true if edge was removed
- */
-template <class G, class R, class K>
-inline bool removeRandomEdgeFrom(G& a, R& rnd, K u) {
-  auto fe = [&](auto u, auto v, auto w) { a.removeEdge(u, v); return true; };
-  return removeRandomEdgeFrom(a, rnd, u, fe);
-}
-
-
-/**
  * Randomly decide upon a edge that may be removed from a graph.
+ * @param rnd random number generator (updated)
  * @param x input graph
- * @param rnd random number generator
  * @param i begin vertex
- * @param n number of vertices (range)
+ * @param n number of vertices / range
  * @param fe callback function to remove edge (u, v, w)
  * @returns true if edge was removed
  */
-template <class G, class R, class FE>
-inline bool removeRandomEdge(const G& x, R& rnd, size_t i, size_t n, FE fe) {
+template <class R, class G, class FE>
+inline bool removeRandomEdge(R& rnd, const G& x, size_t i, size_t n, FE fe) {
   using K = typename G::key_type;
   uniform_real_distribution<> dis(0.0, 1.0);
   K u = K(i + n*dis(rnd));
-  return removeRandomEdgeFrom(x, rnd, u, fe);
+  return removeRandomEdgeFrom(rnd, x, u, fe);
 }
+#pragma endregion
 
 
+
+
+#pragma region ADD RANDOM EDGE
 /**
- * Remove a random edge from a graph.
- * @param a graph to remove edge from (updated)
- * @param rnd random number generator
+ * Randomly decide upon a edge that may be added to a graph.
+ * @param rnd random number generator (updated)
+ * @param x input graph
  * @param i begin vertex
  * @param n number of vertices (range)
- * @returns true if edge was removed
+ * @param w edge weight
+ * @param fe callback function to add edge (u, v, w)
+ * @returns true if edge was added
  */
-template <class G, class R>
-inline bool removeRandomEdge(G& a, R& rnd, size_t i, size_t n) {
-  auto fe = [&](auto u, auto v, auto w) { a.removeEdge(u, v); return true; };
-  return removeRandomEdge(a, rnd, i, n, fe);
+template <class R, class G, class V, class FE>
+inline bool addRandomEdge(R& rnd, const G& x, size_t i, size_t n, V w, FE fe) {
+  using K = typename G::key_type;
+  uniform_real_distribution<> dis(0.0, 1.0);
+  K u = K(i + n*dis(rnd));
+  K v = K(i + n*dis(rnd));
+  return fe(u, v, w);
 }
 #pragma endregion
 
@@ -132,56 +87,52 @@ inline bool removeRandomEdge(G& a, R& rnd, size_t i, size_t n) {
 
 #pragma region GENERATE BATCH
 /**
- * Add a batch of random edges to a graph.
- * @param a graph to add edges to (updated)
- * @param rnd random number generator
- * @param batchSize number of edges to add
- * @param i begin vertex
- * @param n number of vertices (range)
- * @param w edge weight
- * @returns inserted edges {u, v, w}
- */
-template <class G, class R, class V>
-inline auto addRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n, V w) {
-  using K = typename G::key_type;
-  int retries = 5;
-  vector<tuple<K, K, V>> insertions;
-  auto fe = [&](auto u, auto v, auto w) {
-    a.addEdge(u, v, w);
-    insertions.push_back(make_tuple(u, v, w));
-    return true;
-  };
-  for (size_t l=0; l<batchSize; ++l)
-    retry([&]() { return addRandomEdge(a, rnd, i, n, w, fe); }, retries);
-  updateOmpU(a);
-  return insertions;
-}
-
-
-/**
- * Remove a batch of random edges from a graph.
- * @param a graph to remove edges from (updated)
- * @param rnd random number generator
+ * Generate a batch of random edge deletions.
+ * @param rnd random number generator (updated)
+ * @param x original graph
  * @param batchSize number of edges to remove
  * @param i begin vertex
  * @param n number of vertices (range)
  * @returns deleted edges {u, v}
  */
-template <class G, class R>
-inline auto removeRandomEdges(G& a, R& rnd, size_t batchSize, size_t i, size_t n) {
+template <class R, class G>
+inline auto generateEdgeDeletions(R& rnd, const G& x, size_t batchSize, size_t i, size_t n) {
   using K = typename G::key_type;
   using V = typename G::edge_value_type;
   int retries = 5;
   vector<tuple<K, K, V>> deletions;
   auto fe = [&](auto u, auto v, auto w) {
-    a.removeEdge(u, v);
     deletions.push_back(make_tuple(u, v, w));
     return true;
   };
   for (size_t l=0; l<batchSize; ++l)
-    retry([&]() { return removeRandomEdge(a, rnd, i, n, fe); }, retries);
-  updateOmpU(a);
+    retry([&]() { return removeRandomEdge(rnd, x, i, n, fe); }, retries);
   return deletions;
+}
+
+
+/**
+ * Generate a batch of random edge insertions.
+ * @param rnd random number generator (updated)
+ * @param x original graph
+ * @param batchSize number of edges to add
+ * @param i begin vertex
+ * @param n number of vertices / range
+ * @param w edge weight
+ * @returns inserted edges {u, v, w}
+ */
+template <class R, class G, class V>
+inline auto generateEdgeInsertions(R& rnd, const G& x, size_t batchSize, size_t i, size_t n, V w) {
+  using K = typename G::key_type;
+  int retries = 5;
+  vector<tuple<K, K, V>> insertions;
+  auto fe = [&](auto u, auto v, auto w) {
+    insertions.push_back(make_tuple(u, v, w));
+    return true;
+  };
+  for (size_t l=0; l<batchSize; ++l)
+    retry([&]() { return addRandomEdge(rnd, x, i, n, w, fe); }, retries);
+  return insertions;
 }
 #pragma endregion
 
@@ -252,5 +203,45 @@ inline void tidyBatchUpdateU(vector<tuple<K, K, V>>& deletions, vector<tuple<K, 
   uniqueEdgesU(deletions);
   uniqueEdgesU(insertions);
 }
+#pragma endregion
+
+
+
+
+#pragma region APPLY
+/**
+ * Apply a batch update to a graph.
+ * @param a input graph (updated)
+ * @param deletions edge deletions in batch update
+ * @param insertions edge insertions in batch update
+ */
+template <class G, class K, class V>
+inline void applyBatchUpdateU(G& a, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions) {
+  for (auto [u, v, w] : deletions)
+    a.removeEdge(u, v);
+  updateU(a);
+  for (auto [u, v, w] : insertions)
+    a.addEdge(u, v, w);
+  updateU(a);
+}
+
+
+#ifdef OPENMP
+/**
+ * Apply a batch update to a graph.
+ * @param a input graph (updated)
+ * @param deletions edge deletions in batch update
+ * @param insertions edge insertions in batch update
+ */
+template <class G, class K, class V>
+inline void applyBatchUpdateOmpU(G& a, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions) {
+  for (auto [u, v, w] : deletions)
+    a.removeEdge(u, v);
+  updateOmpU(a);
+  for (auto [u, v, w] : insertions)
+    a.addEdge(u, v, w);
+  updateOmpU(a);
+}
+#endif
 #pragma endregion
 #pragma endregion
