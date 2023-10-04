@@ -70,8 +70,8 @@ inline void runBatches(const G& x, R& rnd, F fn) {
     for (int r=0; r<REPEAT_BATCH; ++r) {
       auto y  = duplicate(x);
       for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
-        auto deletions  = generateEdgeDeletions (rnd, y, size_t(d * x.size()/2), 1, x.span()-1);
-        auto insertions = generateEdgeInsertions(rnd, y, size_t(i * x.size()/2), 1, x.span()-1, E(1));
+        auto deletions  = generateEdgeDeletions (rnd, y, true, size_t(d * x.size()/2), 1, x.span()-1);
+        auto insertions = generateEdgeInsertions(rnd, y, true, size_t(i * x.size()/2), 1, x.span()-1, E(1));
         tidyBatchUpdateU(deletions, insertions, y);
         applyBatchUpdateOmpU(y, deletions, insertions);
         fn(y, d, deletions, i, insertions, sequence, epoch);
