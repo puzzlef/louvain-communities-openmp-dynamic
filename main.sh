@@ -15,7 +15,7 @@ fi
 : "${TYPE:=float}"
 : "${MAX_THREADS:=64}"
 : "${REPEAT_BATCH:=5}"
-: "${REPEAT_METHOD:=1}"
+: "${REPEAT_METHOD:=5}"
 # Parameter sweep for batch (randomly generated)
 : "${BATCH_UNIT:=%}"
 : "${BATCH_LENGTH:=1}"

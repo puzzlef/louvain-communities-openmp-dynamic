@@ -80,15 +80,19 @@ struct LouvainResult {
   /** Community membership each vertex belongs to. */
   vector<K> membership;
   /** Total edge weight of each vertex. */
-  vector<W> totalWeight;
+  vector<W> vertexWeight;
+  /** Total edge weight of each community. */
+  vector<W> communityWeight;
   /** Number of iterations performed. */
   int iterations;
   /** Number of passes performed. */
   int passes;
   /** Time spent in milliseconds. */
   float time;
-  /** Time spent in milliseconds for preprocessing. */
-  float preprocessingTime;
+  /** Time spent in milliseconds for initial marking of affected vertices. */
+  float markingTime;
+  /** Time spent in initializing community memberships and total vertex/community weights. */
+  float initializationTime;
   /** Time spent in milliseconds in first pass. */
   float firstPassTime;
   /** Time spent in milliseconds in local-moving phase. */
@@ -104,35 +108,39 @@ struct LouvainResult {
   /**
    * Result of Louvain algorithm.
    * @param membership community membership each vertex belongs to
-   * @param totalWeight total edge weight of each vertex
+   * @param vertexWeight total edge weight of each vertex
+   * @param communityWeight total edge weight of each community
    * @param iterations number of iterations performed
    * @param passes number of passes performed
    * @param time time spent in milliseconds
-   * @param preprocessingTime time spent in milliseconds for preprocessing
+   * @param markingTime time spent in milliseconds for initial marking of affected vertices
+   * @param initializationTime time spent in initializing community memberships and total vertex/community weights
    * @param firstPassTime time spent in milliseconds in first pass
    * @param localMoveTime time spent in milliseconds in local-moving phase
    * @param aggregationTime time spent in milliseconds in aggregation phase
    * @param affectedVertices number of vertices initially marked as affected
    */
-  LouvainResult(vector<K>&& membership, vector<W>&& totalWeight, int iterations=0, int passes=0, float time=0, float preprocessingTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
-  membership(membership), totalWeight(totalWeight), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
+  LouvainResult(vector<K>&& membership, vector<W>&& vertexWeight, vector<W>&& communityWeight, int iterations=0, int passes=0, float time=0, float markingTime=0, float initializationTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
+  membership(membership), vertexWeight(vertexWeight), communityWeight(communityWeight), iterations(iterations), passes(passes), time(time), markingTime(markingTime), initializationTime(initializationTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
 
 
   /**
    * Result of Louvain algorithm.
    * @param membership community membership each vertex belongs to (moved)
-   * @param totalWeight total edge weight of each vertex (moved)
+   * @param vertexWeight total edge weight of each vertex (moved)
+   * @param communityWeight total edge weight of each community (moved)
    * @param iterations number of iterations performed
    * @param passes number of passes performed
    * @param time time spent in milliseconds
-   * @param preprocessingTime time spent in milliseconds for preprocessing
+   * @param markingTime time spent in milliseconds for initial marking of affected vertices
+   * @param initializationTime time spent in initializing community memberships and total vertex/community weights
    * @param firstPassTime time spent in milliseconds in first pass
    * @param localMoveTime time spent in milliseconds in local-moving phase
    * @param aggregationTime time spent in milliseconds in aggregation phase
    * @param affectedVertices number of vertices initially marked as affected
    */
-  LouvainResult(vector<K>& membership, vector<W>& totalWeight, int iterations=0, int passes=0, float time=0, float preprocessingTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
-  membership(move(membership)), totalWeight(move(totalWeight)), iterations(iterations), passes(passes), time(time), preprocessingTime(preprocessingTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
+  LouvainResult(vector<K>& membership, vector<W>& vertexWeight, vector<W>& communityWeight, int iterations=0, int passes=0, float time=0, float markingTime=0, float initializationTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
+  membership(move(membership)), vertexWeight(move(vertexWeight)), communityWeight(move(communityWeight)), iterations(iterations), passes(passes), time(time), markingTime(markingTime), initializationTime(initializationTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
   #pragma endregion
 };
 #pragma endregion
@@ -206,62 +214,6 @@ inline void louvainVertexWeightsOmpW(vector<W>& vtot, const G& x) {
   for (K u=0; u<S; ++u) {
     if (!x.hasVertex(u)) continue;
     x.forEachEdge(u, [&](auto v, auto w) { vtot[u] += w; });
-  }
-}
-#endif
-
-
-/**
- * Find the total edge weight of each vertex from given initial vertex weights.
- * @param vtot total edge weight of each vertex (output)
- * @param y updated graph
- * @param deletions edge deletions in batch update
- * @param insertions edge insertions in batch update
- * @param qtot initial total edge weight of each vertex
- */
-template <class G, class K, class V, class W>
-inline void louvainVertexWeightsFromW(vector<W>& vtot, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<W>& qtot) {
-  y.forEachVertexKey([&](auto u) {
-    vtot[u] = qtot[u];
-  });
-  for (auto [u, v, w] : deletions) {
-    vtot[u] -= w;
-    vtot[v] -= w;
-  }
-  for (auto [u, v, w] : insertions) {
-    vtot[u] += w;
-    vtot[v] += w;
-  }
-}
-
-
-#ifdef OPENMP
-/**
- * Find the total edge weight of each vertex from given initial vertex weights.
- * @param vtot total edge weight of each vertex (output)
- * @param y updated graph
- * @param deletions edge deletions in batch update
- * @param insertions edge insertions in batch update
- * @param qtot initial total edge weight of each vertex
- */
-template <class G, class K, class V, class W>
-inline void louvainVertexWeightsFromOmpW(vector<W>& vtot, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<W>& qtot) {
-  size_t S = y.span();
-  #pragma omp parallel for schedule(static, 2048)
-  for (K u=0; u<S; ++u) {
-    if (!y.hasVertex(u)) continue;
-    vtot[u] = qtot[u];
-  }
-  #pragma omp parallel
-  {
-    for (auto [u, v, w] : deletions) {
-      if (belongsOmp(u)) vtot[u] -= w;
-      if (belongsOmp(v)) vtot[v] -= w;
-    }
-    for (auto [u, v, w] : insertions) {
-      if (belongsOmp(u)) vtot[u] += w;
-      if (belongsOmp(v)) vtot[v] += w;
-    }
   }
 }
 #endif
@@ -379,6 +331,78 @@ inline void louvainInitializeFromOmpW(vector<K>& vcom, vector<W>& ctot, const G&
     vcom[u]  = c;
     #pragma omp atomic
     ctot[c] += vtot[u];
+  }
+}
+#endif
+
+
+/**
+ * Initialize communities from given initial communities and auxiliary information.
+ * @param vcom community each vertex belongs to (updated, must be initialized)
+ * @param vtot total edge weight of each vertex (updated, must be initialized)
+ * @param ctot total edge weight of each community (updated, must be initialized)
+ * @param y updated graph
+ * @param deletions edge deletions in batch update
+ * @param insertions edge insertions in batch update
+ * @param q initial community each vertex belongs to
+ * @param qvtot initial total edge weight of each vertex
+ * @param qctot initial total edge weight of each community
+ */
+template <class G, class K, class V, class W>
+inline void louvainAuxiliaryInitializeFromW(vector<K>& vcom, vector<W>& vtot, vector<W>& ctot, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot) {
+  y.forEachVertexKey([&](auto u) {
+    vcom[u] = q[u];
+    vtot[u] = qvtot[u];
+  });
+  copyValues(ctot, qctot);
+  for (auto [u, v, w] : deletions) {
+    K c = vcom[u];
+    vtot[u] -= w;
+    ctot[c] -= w;
+  }
+  for (auto [u, v, w] : insertions) {
+    K c = vcom[u];
+    vtot[u] += w;
+    ctot[c] += w;
+  }
+}
+
+
+#ifdef OPENMP
+/**
+ * Initialize communities from given initial communities and auxiliary information.
+ * @param vcom community each vertex belongs to (updated, must be initialized)
+ * @param vtot total edge weight of each vertex (updated, must be initialized)
+ * @param ctot total edge weight of each community (updated, must be initialized)
+ * @param y updated graph
+ * @param deletions edge deletions in batch update
+ * @param insertions edge insertions in batch update
+ * @param q initial community each vertex belongs to
+ * @param qvtot initial total edge weight of each vertex
+ * @param qctot initial total edge weight of each community
+ */
+template <class G, class K, class V, class W>
+inline void louvainAuxiliaryInitializeFromOmpW(vector<K>& vcom, vector<W>& vtot, vector<W>& ctot, const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot) {
+  size_t S = y.span();
+  #pragma omp parallel for schedule(static, 2048)
+  for (K u=0; u<S; ++u) {
+    if (!y.hasVertex(u)) continue;
+    vcom[u] = q[u];
+    vtot[u] = qvtot[u];
+  }
+  copyValuesOmpW(ctot, qctot);
+  #pragma omp parallel
+  {
+    for (auto [u, v, w] : deletions) {
+      K c = vcom[u];
+      if (belongsOmp(u)) vtot[u] -= w;
+      if (belongsOmp(c)) ctot[c] -= w;
+    }
+    for (auto [u, v, w] : insertions) {
+      K c = vcom[u];
+      if (belongsOmp(u)) vtot[u] += w;
+      if (belongsOmp(c)) ctot[c] += w;
+    }
   }
 }
 #endif
@@ -995,42 +1019,43 @@ inline void louvainAggregateOmpW(vector<size_t>& yoff, vector<K>& ydeg, vector<K
 /**
  * Setup and perform the Louvain algorithm.
  * @param x original graph
- * @param q initial community each vertex belongs to
  * @param o louvain options
- * @param fm marking affected vertices / preprocessing to be performed (vaff)
- * @param fw obtaining total edge weight of each vertex (vtot)
- * @param fa is vertex allowed to be updated?
+ * @param fm marking affected vertices (vaff, vcs, vcout)
+ * @param fi initialzing community membership and total vertex/community weights (vcom, vtot, ctot)
+ * @param fa is vertex allowed to be updated? (u)
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class FM, class FW, class FA>
-inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm, FW fw, FA fa) {
+template <class FLAG=char, class G, class FM, class FI, class FA>
+inline auto louvainInvoke(const G& x, const LouvainOptions& o, FM fm, FI fi, FA fa) {
+  using  K = typename G::key_type;
   using  W = LOUVAIN_WEIGHT_TYPE;
   using  B = FLAG;
+  // Options.
   double R = o.resolution;
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0;
+  // Get graph properties.
   size_t X = x.size();
   size_t S = x.span();
   double M = edgeWeight(x)/2;
-  vector<B> vaff(S);
-  vector<K> vcom(S), a(S);
-  vector<W> vtot(S), ctot(S);
-  vector<W> utot(S);
-  vector<K> vcs;
-  vector<W> vcout(S);
+  // Allocate buffers.
+  vector<B> vaff(S);           // Affected vertex flag (first pass)
+  vector<K> vcom(S), a(S);     // Community membership (current pass, global)
+  vector<W> vtot(S), ctot(S);  // Total vertex, community weights (current pass)
+  vector<W> utot(S), dtot(S);  // Total vertex, community weights for returning as auxiliary information
+  vector<K> vcs;       // Hashtable keys
+  vector<W> vcout(S);  // Hashtable values
   size_t Z = max(size_t(o.aggregationTolerance * X), X);
   size_t Y = max(size_t(o.aggregationTolerance * Z), Z);
-  DiGraphCsr<K, None, None, K> cv(S, S);
-  DiGraphCsr<K, None, W> y(S, Y);  // y(S, X)
-  DiGraphCsr<K, None, W> z(S, Z);  // z(S, X)
-  // Count affected vertices.
-  fm(vaff, vcs, vcout);
-  size_t NA = countValue(vaff, B(1));
+  DiGraphCsr<K, None, None, K> cv(S, S);  // CSR for community vertices
+  DiGraphCsr<K, None, W> y(S, Y);  // CSR for aggregated graph (input);  y(S, X)
+  DiGraphCsr<K, None, W> z(S, Z);  // CSR for aggregated graph (output); z(S, X)
   // Perform Louvain algorithm.
-  float tm = 0, tp = 0, tl = 0, ta = 0;
+  float tm = 0, ti = 0, tp = 0, tl = 0, ta = 0;  // Time spent in different phases
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
     auto   fc = [&](double el, int l) { return el<=E; };
+    // Reset buffers, in case of multiple runs.
     fillValueU(vcom, K());
     fillValueU(vtot, W());
     fillValueU(ctot, W());
@@ -1038,13 +1063,21 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
     cv.respan(S);
     y .respan(S);
     z .respan(S);
+    // Time the algorithm.
     mark([&]() {
+      // Mark affected vertices.
       tm += measureDuration([&]() { fm(vaff, vcs, vcout); });
+      // Start timing first pass.
       auto t0 = timeNow(), t1 = t0;
-      fw(vtot);  // louvainVertexWeightsW(vtot, x);
-      copyValuesW(utot, vtot);
-      if (q) louvainInitializeFromW(vcom, ctot, x, vtot, *q);
-      else   louvainInitializeW(vcom, ctot, x, vtot);
+      // Initialize community membership and total vertex/community weights.
+      ti += measureDuration([&]() {
+        fi(vcom, vtot, ctot);
+        copyValuesW(utot, vtot);
+        copyValuesW(dtot, ctot);
+      });
+      // Start local-moving, aggregation phases.
+      // NOTE: In first pass, the input graph is a DiGraph.
+      // NOTE: For subsequent passes, the input graph is a DiGraphCsr (optimization).
       for (l=0, p=0; M>0 && P>0;) {
         if (p==1) t1 = timeNow();
         bool isFirst = p==0;
@@ -1087,7 +1120,7 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
       tp += duration(t0, t1);
     });
   }, o.repeat);
-  return LouvainResult<K, W>(a, utot, l, p, t, tm/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, NA);
+  return LouvainResult<K, W>(a, utot, dtot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValue(vaff, B(1)));
 }
 
 
@@ -1095,46 +1128,47 @@ inline auto louvainInvoke(const G& x, const vector<K> *q, const LouvainOptions& 
 /**
  * Setup and perform the Louvain algorithm.
  * @param x original graph
- * @param q initial community each vertex belongs to
  * @param o louvain options
- * @param fm marking affected vertices / preprocessing to be performed (vaff)
- * @param fw obtaining total edge weight of each vertex (vtot)
- * @param fa is vertex allowed to be updated?
+ * @param fm marking affected vertices (vaff, vcs, vcout)
+ * @param fi initialzing community membership and total vertex/community weights (vcom, vtot, ctot)
+ * @param fa is vertex allowed to be updated? (u)
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class FM, class FW, class FA>
-inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOptions& o, FM fm, FW fw, FA fa) {
+template <class FLAG=char, class G, class FM, class FI, class FA>
+inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FM fm, FI fi, FA fa) {
+  using  K = typename G::key_type;
   using  W = LOUVAIN_WEIGHT_TYPE;
   using  B = FLAG;
+  // Options.
   double R = o.resolution;
   int    L = o.maxIterations, l = 0;
   int    P = o.maxPasses, p = 0;
+  // Get graph properties.
   size_t X = x.size();
   size_t S = x.span();
   double M = edgeWeightOmp(x)/2;
+  // Allocate buffers.
   int    T = omp_get_max_threads();
-  vector<B> vaff(S);
-  vector<K> vcom(S), a(S);
-  vector<W> vtot(S), ctot(S);
-  vector<W> utot(S);
-  vector<K> bufk(T);
-  vector<size_t> bufs(T);
-  vector<vector<K>*> vcs(T);
-  vector<vector<W>*> vcout(T);
+  vector<B> vaff(S);           // Affected vertex flag (first pass)
+  vector<K> vcom(S), a(S);     // Community membership (current pass, global)
+  vector<W> vtot(S), ctot(S);  // Total vertex, community weights (current pass)
+  vector<W> utot(S), dtot(S);  // Total vertex, community weights for returning as auxiliary information
+  vector<K> bufk(T);       // Buffer for exclusive scan
+  vector<size_t> bufs(T);  // Buffer for exclusive scan
+  vector<vector<K>*> vcs(T);    // Hashtable keys
+  vector<vector<W>*> vcout(T);  // Hashtable values
   louvainAllocateHashtablesW(vcs, vcout, S);
   size_t Z = max(size_t(o.aggregationTolerance * X), X);
   size_t Y = max(size_t(o.aggregationTolerance * Z), Z);
-  DiGraphCsr<K, None, None, K> cv(S, S);
-  DiGraphCsr<K, None, W> y(S, Y);  // y(S, X)
-  DiGraphCsr<K, None, W> z(S, Z);  // z(S, X)
-  // Count affected vertices.
-  fm(vaff, vcs, vcout);
-  size_t NA = countValueOmp(vaff, B(1));
+  DiGraphCsr<K, None, None, K> cv(S, S);  // CSR for community vertices
+  DiGraphCsr<K, None, W> y(S, Y);         // CSR for aggregated graph (input);  y(S, X)
+  DiGraphCsr<K, None, W> z(S, Z);         // CSR for aggregated graph (output); z(S, X)
   // Perform Louvain algorithm.
-  float tm = 0, tp = 0, tl = 0, ta = 0;
+  float tm = 0, ti = 0, tp = 0, tl = 0, ta = 0;  // Time spent in different phases
   float t  = measureDurationMarked([&](auto mark) {
     double E  = o.tolerance;
     auto   fc = [&](double el, int l) { return el<=E; };
+    // Reset buffers, in case of multiple runs.
     fillValueOmpU(vcom, K());
     fillValueOmpU(vtot, W());
     fillValueOmpU(ctot, W());
@@ -1142,13 +1176,21 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
     cv.respan(S);
     y .respan(S);
     z .respan(S);
+    // Time the algorithm.
     mark([&]() {
+      // Mark affected vertices.
       tm += measureDuration([&]() { fm(vaff, vcs, vcout); });
+      // Start timing first pass.
       auto t0 = timeNow(), t1 = t0;
-      fw(vtot);  // louvainVertexWeightsOmpW(vtot, x);
-      copyValuesOmpW(utot, vtot);
-      if (q) louvainInitializeFromOmpW(vcom, ctot, x, vtot, *q);
-      else   louvainInitializeOmpW(vcom, ctot, x, vtot);
+      // Initialize community membership and total vertex/community weights.
+      ti += measureDuration([&]() {
+        fi(vcom, vtot, ctot);
+        copyValuesOmpW(utot, vtot);
+        copyValuesOmpW(dtot, ctot);
+      });
+      // Start local-moving, aggregation phases.
+      // NOTE: In first pass, the input graph is a DiGraph.
+      // NOTE: For subsequent passes, the input graph is a DiGraphCsr (optimization).
       for (l=0, p=0; M>0 && P>0;) {
         if (p==1) t1 = timeNow();
         bool isFirst = p==0;
@@ -1192,7 +1234,7 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
     });
   }, o.repeat);
   louvainFreeHashtablesW(vcs, vcout);
-  return LouvainResult<K, W>(a, utot, l, p, t, tm/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, NA);
+  return LouvainResult<K, W>(a, utot, dtot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValueOmp(vaff, B(1)));
 }
 #endif
 #pragma endregion
@@ -1210,10 +1252,13 @@ inline auto louvainInvokeOmp(const G& x, const vector<K> *q, const LouvainOption
  */
 template <class FLAG=char, class G, class K>
 inline auto louvainStatic(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
-  auto fm = [ ](auto& vaff, auto& vcs, auto& vcout) { fillValueU(vaff, FLAG(1)); };
-  auto fw = [&](auto& vtot) { louvainVertexWeightsW(vtot, x); };
+  auto fm = [ ](auto& vaff, auto& vcs,  auto& vcout) { fillValueU(vaff, FLAG(1)); };
+  auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
+    louvainVertexWeightsW(vtot, x);
+    louvainInitializeW(vcom, ctot, x, vtot);
+  };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvoke<FLAG>(x, q, o, fm, fw, fa);
+  return louvainInvoke<FLAG>(x, o, fm, fi, fa);
 }
 
 
@@ -1227,10 +1272,13 @@ inline auto louvainStatic(const G& x, const vector<K>* q=nullptr, const LouvainO
  */
 template <class FLAG=char, class G, class K>
 inline auto louvainStaticOmp(const G& x, const vector<K>* q=nullptr, const LouvainOptions& o={}) {
-  auto fm = [ ](auto& vaff, auto& vcs, auto& vcout) { fillValueOmpU(vaff, FLAG(1)); };
-  auto fw = [&](auto& vtot) { louvainVertexWeightsOmpW(vtot, x); };
+  auto fm = [ ](auto& vaff, auto& vcs,  auto& vcout) { fillValueOmpU(vaff, FLAG(1)); };
+  auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
+    louvainVertexWeightsOmpW(vtot, x);
+    louvainInitializeOmpW(vcom, ctot, x, vtot);
+  };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvokeOmp<FLAG>(x, q, o, fm, fw, fa);
+  return louvainInvokeOmp<FLAG>(x, o, fm, fi, fa);
 }
 #endif
 #pragma endregion
@@ -1363,12 +1411,13 @@ inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vecto
  * @param deletions edge deletions in batch update
  * @param insertions edge insertions in batch update
  * @param q initial community each vertex belongs to
- * @param qtot initial total edge weight of each vertex
+ * @param qvtot initial total edge weight of each vertex
+ * @param qctot initial total edge weight of each community
  * @param o louvain options
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W> *qtot, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W> *qvtot, const vector<W> *qctot, const LouvainOptions& o={}) {
   using  B = FLAG;
   size_t S = y.span();
   double R = o.resolution;
@@ -1382,9 +1431,16 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>
     louvainAffectedVerticesDeltaScreeningW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesW(vaff, vertices);
   };
-  auto fw = [&](auto& vtot) { louvainVertexWeightsFromW(vtot, y, deletions, insertions, *qtot); };
+  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
+    double BF = (deletions.size() + insertions.size()) / double(y.size());
+    if (BF < 2e-3) louvainAuxiliaryInitializeFromW(vcom, vtot, ctot, y, deletions, insertions, *q, *qvtot, *qctot);
+    else {
+      louvainVertexWeightsW(vtot, y);
+      louvainInitializeFromW(vcom, ctot, y, vtot, *q);
+    }
+  };
   auto fa = [&](auto u) { return vertices[u] == B(1); };
-  return louvainInvoke<FLAG>(y, q, o, fm, fw, fa);
+  return louvainInvoke<FLAG>(y, o, fm, fi, fa);
 }
 
 
@@ -1395,12 +1451,13 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>
  * @param deletions edge deletions in batch update
  * @param insertions edge insertions in batch update
  * @param q initial community each vertex belongs to
- * @param qtot initial total edge weight of each vertex
+ * @param qvtot initial total edge weight of each vertex
+ * @param qctot initial total edge weight of each community
  * @param o louvain options
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W>* qtot, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W>* qvtot, const vector<W> *qctot, const LouvainOptions& o={}) {
   using  B = FLAG;
   size_t S = y.span();
   double R = o.resolution;
@@ -1415,9 +1472,16 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K,
     louvainAffectedVerticesDeltaScreeningOmpW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesOmpW(vaff, vertices);
   };
-  auto fw = [&](auto& vtot) { louvainVertexWeightsFromOmpW(vtot, y, deletions, insertions, *qtot); };
+  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
+    double BF = (deletions.size() + insertions.size()) / double(y.size());
+    if (BF < 2e-3) louvainAuxiliaryInitializeFromOmpW(vcom, vtot, ctot, y, deletions, insertions, *q, *qvtot, *qctot);
+    else {
+      louvainVertexWeightsOmpW(vtot, y);
+      louvainInitializeFromOmpW(vcom, ctot, y, vtot, *q);
+    }
+  };
   auto fa = [&](auto u) { return vertices[u] == B(1); };
-  return louvainInvokeOmp<FLAG>(y, q, o, fm, fw, fa);
+  return louvainInvokeOmp<FLAG>(y, o, fm, fi, fa);
 }
 #endif
 #pragma endregion
@@ -1489,19 +1553,27 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y,
  * @param deletions edge deletions in batch update
  * @param insertions edge insertions in batch update
  * @param q initial community each vertex belongs to
- * @param qtot initial total edge weight of each vertex
+ * @param qvtot initial total edge weight of each vertex
+ * @param qctot initial total edge weight of each community
  * @param o louvain options
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W>* qtot, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W>* qvtot, const vector<W> *qctot, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
     louvainAffectedVerticesFrontierW(vaff, y, deletions, insertions, vcom);
   };
-  auto fw = [&](auto& vtot) { louvainVertexWeightsFromW(vtot, y, deletions, insertions, *qtot); };
+  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
+    double BF = (deletions.size() + insertions.size()) / double(y.size());
+    if (BF < 2e-3) louvainAuxiliaryInitializeFromW(vcom, vtot, ctot, y, deletions, insertions, *q, *qvtot, *qctot);
+    else {
+      louvainVertexWeightsW(vtot, y);
+      louvainInitializeFromW(vcom, ctot, y, vtot, *q);
+    }
+  };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvoke<FLAG>(y, q, o, fm, fw, fa);
+  return louvainInvoke<FLAG>(y, o, fm, fi, fa);
 }
 
 
@@ -1512,19 +1584,27 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& del
  * @param deletions edge deletions in batch update
  * @param insertions edge insertions in batch update
  * @param q initial community each vertex belongs to
- * @param qtot initial total edge weight of each vertex
+ * @param qvtot initial total edge weight of each vertex
+ * @param qctot initial total edge weight of each community
  * @param o louvain options
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W>* qtot, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const vector<W>* qvtot, const vector<W> *qctot, const LouvainOptions& o={}) {
   const vector<K>& vcom = *q;
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout) {
     louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom);
   };
-  auto fw = [&](auto& vtot) { louvainVertexWeightsFromOmpW(vtot, y, deletions, insertions, *qtot); };
+  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
+    double BF = (deletions.size() + insertions.size()) / double(y.size());
+    if (BF < 2e-3) louvainAuxiliaryInitializeFromOmpW(vcom, vtot, ctot, y, deletions, insertions, *q, *qvtot, *qctot);
+    else {
+      louvainVertexWeightsOmpW(vtot, y);
+      louvainInitializeFromOmpW(vcom, ctot, y, vtot, *q);
+    }
+  };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvokeOmp<FLAG>(y, q, o, fm, fw, fa);
+  return louvainInvokeOmp<FLAG>(y, o, fm, fi, fa);
 }
 #endif
 #pragma endregion

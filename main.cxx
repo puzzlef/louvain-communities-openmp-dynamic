@@ -151,10 +151,10 @@ void runExperiment(const G& x) {
   auto glog = [&](const auto& ans, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
     printf(
       "{-%.3e/+%.3e batchf, %03d threads} -> "
-      "{%09.1fms, %09.1fms preproc, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity} %s\n",
+      "{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity} %s\n",
       double(deletionsf), double(insertionsf), numThreads,
-      ans.time, ans.preprocessingTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime, double(ans.affectedVertices),
-      ans.iterations, ans.passes, getModularity(y, ans, M), technique
+      ans.time, ans.markingTime, ans.initializationTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
+      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(y, ans, M), technique
     );
   };
   // Get community memberships on original graph (static).
@@ -162,12 +162,13 @@ void runExperiment(const G& x) {
   glog(b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
   #if BATCH_LENGTH>1
   vector<K> B2, B3, B4;
-  vector<W> VW;
+  vector<W> VW, CW;
   #else
   const auto& B2 = b0.membership;
   const auto& B3 = b0.membership;
   const auto& B4 = b0.membership;
-  const auto& VW = b0.totalWeight;
+  const auto& VW = b0.vertexWeight;
+  const auto& CW = b0.communityWeight;
   #endif
   // Get community memberships on updated graph (dynamic).
   runBatches(x, rnd, [&](const auto& y, auto deletionsf, const auto& deletions, auto insertionsf, const auto& insertions, int sequence, int epoch) {
@@ -177,7 +178,8 @@ void runExperiment(const G& x) {
       B2 = b0.membership;
       B3 = b0.membership;
       B4 = b0.membership;
-      VW = b0.totalWeight;
+      VW = b0.vertexWeight;
+      CW = b0.communityWeight;
     }
     #endif
     // Adjust number of threads.
@@ -191,17 +193,18 @@ void runExperiment(const G& x) {
       // Find naive-dynamic Louvain.
       auto b2 = louvainStaticOmp(y, &B2, {repeat});
       flog(b2, "louvainNaiveDynamicOmp");
-      // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, &VW, {repeat});
-      flog(b4, "louvainDynamicFrontierOmp");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, &VW, {repeat});
+      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, &B3, &VW, &CW, {repeat});
       flog(b3, "louvainDynamicDeltaScreeningOmp");
+      // Find frontier based dynamic Louvain.
+      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, &B4, &VW, &CW, {repeat});
+      flog(b4, "louvainDynamicFrontierOmp");
       #if BATCH_LENGTH>1
       B2 = b2.membership;
       B3 = b3.membership;
       B4 = b4.membership;
-      VW = b1.totalWeight;
+      VW = b1.vertexWeight;
+      CW = b1.communityWeight;
       #endif
     });
   });
