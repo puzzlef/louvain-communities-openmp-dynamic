@@ -1255,7 +1255,8 @@ inline auto louvainStatic(const G& x, const vector<K>* q=nullptr, const LouvainO
   auto fm = [ ](auto& vaff, auto& vcs,  auto& vcout) { fillValueU(vaff, FLAG(1)); };
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
     louvainVertexWeightsW(vtot, x);
-    louvainInitializeW(vcom, ctot, x, vtot);
+    if (q) louvainInitializeFromW(vcom, ctot, x, vtot, *q);
+    else   louvainInitializeW(vcom, ctot, x, vtot);
   };
   auto fa = [ ](auto u) { return true; };
   return louvainInvoke<FLAG>(x, o, fm, fi, fa);
@@ -1275,7 +1276,8 @@ inline auto louvainStaticOmp(const G& x, const vector<K>* q=nullptr, const Louva
   auto fm = [ ](auto& vaff, auto& vcs,  auto& vcout) { fillValueOmpU(vaff, FLAG(1)); };
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
     louvainVertexWeightsOmpW(vtot, x);
-    louvainInitializeOmpW(vcom, ctot, x, vtot);
+    if (q) louvainInitializeFromOmpW(vcom, ctot, x, vtot, *q);
+    else   louvainInitializeOmpW(vcom, ctot, x, vtot);
   };
   auto fa = [ ](auto u) { return true; };
   return louvainInvokeOmp<FLAG>(x, o, fm, fi, fa);
