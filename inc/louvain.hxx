@@ -543,8 +543,8 @@ inline void louvainChangeCommunityOmpW(vector<K>& vcom, vector<W>& ctot, const G
  * @param fa is vertex allowed to be updated?
  * @returns iterations performed (0 if converged already)
  */
-template <class G, class K, class W, class B, class FC, class FA>
-inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc, FA fa) {
+template <bool MEASURE=false, class G, class K, class W, class B, class FC, class FA>
+inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<B>& vaffor, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc, FA fa) {
   int l = 0;
   W  el = W();
   for (; l<L;) {
@@ -554,7 +554,7 @@ inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vecto
       louvainClearScanW(vcs, vcout);
       louvainScanCommunitiesW(vcs, vcout, x, u, vcom);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, vcs, vcout, M, R);
-      if (c)      { louvainChangeCommunityW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); }); }
+      if (c)      { louvainChangeCommunityW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); if (MEASURE) vaffor[v] = B(1); }); }
       vaff[u] = B();
       el += e;  // l1-norm
     });
@@ -579,10 +579,10 @@ inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vecto
  * @param fc has local moving phase converged?
  * @returns iterations performed (0 if converged already)
  */
-template <class G, class K, class W, class B, class FC>
-inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc) {
+template <bool MEASURE=false, class G, class K, class W, class B, class FC>
+inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<B>& vaffor, vector<K>& vcs, vector<W>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc) {
   auto fa = [](auto u) { return true; };
-  return louvainMoveW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc, fa);
+  return louvainMoveW<MEASURE>(vcom, ctot, vaff, vaffor, vcs, vcout, x, vtot, M, R, L, fc, fa);
 }
 
 
@@ -603,8 +603,8 @@ inline int louvainMoveW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vecto
  * @param fa is vertex allowed to be updated?
  * @returns iterations performed (0 if converged already)
  */
-template <class G, class K, class W, class B, class FC, class FA>
-inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc, FA fa) {
+template <bool MEASURE=false, class G, class K, class W, class B, class FC, class FA>
+inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<B>& vaffor, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc, FA fa) {
   size_t S = x.span();
   int l = 0;
   W  el = W();
@@ -618,7 +618,7 @@ inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, ve
       louvainClearScanW(*vcs[t], *vcout[t]);
       louvainScanCommunitiesW(*vcs[t], *vcout[t], x, u, vcom);
       auto [c, e] = louvainChooseCommunity(x, u, vcom, vtot, ctot, *vcs[t], *vcout[t], M, R);
-      if (c)      { louvainChangeCommunityOmpW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); }); }
+      if (c)      { louvainChangeCommunityOmpW(vcom, ctot, x, u, c, vtot); x.forEachEdgeKey(u, [&](auto v) { vaff[v] = B(1); if (MEASURE) vaffor[v] = B(1); }); }
       vaff[u] = B();
       el += e;  // l1-norm
     }
@@ -643,10 +643,10 @@ inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, ve
  * @param fc has local moving phase converged?
  * @returns iterations performed (0 if converged already)
  */
-template <class G, class K, class W, class B, class FC>
-inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc) {
+template <bool MEASURE=false, class G, class K, class W, class B, class FC>
+inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vector<B>& vaffor, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<W>& vtot, double M, double R, int L, FC fc) {
   auto fa = [](auto u) { return true; };
-  return louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc, fa);
+  return louvainMoveOmpW<MEASURE>(vcom, ctot, vaff, vaffor, vcs, vcout, x, vtot, M, R, L, fc, fa);
 }
 #endif
 #pragma endregion
@@ -1039,7 +1039,7 @@ inline auto louvainInvoke(const G& x, const LouvainOptions& o, FM fm, FI fi, FA 
   size_t S = x.span();
   double M = edgeWeight(x)/2;
   // Allocate buffers.
-  vector<B> vaff(S);           // Affected vertex flag (first pass)
+  vector<B> vaff(S), vaffor(S);  // Affected vertex flag (first pass)
   vector<K> vcom(S), a(S);     // Community membership (current pass, global)
   vector<W> vtot(S), ctot(S);  // Total vertex, community weights (current pass)
   vector<W> utot(S), dtot(S);  // Total vertex, community weights for returning as auxiliary information
@@ -1066,7 +1066,10 @@ inline auto louvainInvoke(const G& x, const LouvainOptions& o, FM fm, FI fi, FA 
     // Time the algorithm.
     mark([&]() {
       // Mark affected vertices.
-      tm += measureDuration([&]() { fm(vaff, vcs, vcout); });
+      tm += measureDuration([&]() {
+        fm(vaff, vcs, vcout);
+        copyValuesW(vaffor, vaff);
+      });
       // Start timing first pass.
       auto t0 = timeNow(), t1 = t0;
       // Initialize community membership and total vertex/community weights.
@@ -1083,8 +1086,8 @@ inline auto louvainInvoke(const G& x, const LouvainOptions& o, FM fm, FI fi, FA 
         bool isFirst = p==0;
         int m = 0;
         tl += measureDuration([&]() {
-          if (isFirst) m = louvainMoveW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc, fa);
-          else         m = louvainMoveW(vcom, ctot, vaff, vcs, vcout, y, vtot, M, R, L, fc);
+          if (isFirst) m = louvainMoveW<true> (vcom, ctot, vaff, vaffor, vcs, vcout, x, vtot, M, R, L, fc, fa);
+          else         m = louvainMoveW<false>(vcom, ctot, vaff, vaffor, vcs, vcout, y, vtot, M, R, L, fc);
         });
         l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
@@ -1120,7 +1123,7 @@ inline auto louvainInvoke(const G& x, const LouvainOptions& o, FM fm, FI fi, FA 
       tp += duration(t0, t1);
     });
   }, o.repeat);
-  return LouvainResult<K, W>(a, utot, dtot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValue(vaff, B(1)));
+  return LouvainResult<K, W>(a, utot, dtot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValue(vaffor, B(1)));
 }
 
 
@@ -1149,7 +1152,7 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FM fm, FI fi, 
   double M = edgeWeightOmp(x)/2;
   // Allocate buffers.
   int    T = omp_get_max_threads();
-  vector<B> vaff(S);           // Affected vertex flag (first pass)
+  vector<B> vaff(S), vaffor(S);  // Affected vertex flag (first pass)
   vector<K> vcom(S), a(S);     // Community membership (current pass, global)
   vector<W> vtot(S), ctot(S);  // Total vertex, community weights (current pass)
   vector<W> utot(S), dtot(S);  // Total vertex, community weights for returning as auxiliary information
@@ -1179,7 +1182,10 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FM fm, FI fi, 
     // Time the algorithm.
     mark([&]() {
       // Mark affected vertices.
-      tm += measureDuration([&]() { fm(vaff, vcs, vcout); });
+      tm += measureDuration([&]() {
+        fm(vaff, vcs, vcout);
+        copyValuesOmpW(vaffor, vaff);
+      });
       // Start timing first pass.
       auto t0 = timeNow(), t1 = t0;
       // Initialize community membership and total vertex/community weights.
@@ -1196,8 +1202,8 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FM fm, FI fi, 
         bool isFirst = p==0;
         int m = 0;
         tl += measureDuration([&]() {
-          if (isFirst) m = louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc, fa);
-          else         m = louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, y, vtot, M, R, L, fc);
+          if (isFirst) m = louvainMoveOmpW<true> (vcom, ctot, vaff, vaffor, vcs, vcout, x, vtot, M, R, L, fc, fa);
+          else         m = louvainMoveOmpW<false>(vcom, ctot, vaff, vaffor, vcs, vcout, y, vtot, M, R, L, fc);
         });
         l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
@@ -1234,7 +1240,7 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FM fm, FI fi, 
     });
   }, o.repeat);
   louvainFreeHashtablesW(vcs, vcout);
-  return LouvainResult<K, W>(a, utot, dtot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValueOmp(vaff, B(1)));
+  return LouvainResult<K, W>(a, utot, dtot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValueOmp(vaffor, B(1)));
 }
 #endif
 #pragma endregion
