@@ -28,7 +28,7 @@ using namespace std;
 #endif
 #ifndef REPEAT_METHOD
 /** Number of times to repeat each method. */
-#define REPEAT_METHOD 1
+#define REPEAT_METHOD 5
 #endif
 #pragma endregion
 
@@ -70,8 +70,8 @@ inline void runBatches(const G& x, R& rnd, F fn) {
     for (int r=0; r<REPEAT_BATCH; ++r) {
       auto y  = duplicate(x);
       for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
-        auto deletions  = generateEdgeDeletions (rnd, y, true, size_t(d * x.size()/2), 1, x.span()-1);
-        auto insertions = generateEdgeInsertions(rnd, y, true, size_t(i * x.size()/2), 1, x.span()-1, E(1));
+        auto deletions  = generateEdgeDeletions (rnd, y, size_t(d * x.size()/2), 1, x.span()-1, true);
+        auto insertions = generateEdgeInsertions(rnd, y, size_t(i * x.size()/2), 1, x.span()-1, true, E(1));
         tidyBatchUpdateU(deletions, insertions, y);
         applyBatchUpdateOmpU(y, deletions, insertions);
         fn(y, d, deletions, i, insertions, sequence, epoch);

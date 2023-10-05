@@ -91,13 +91,13 @@ inline bool addRandomEdge(R& rnd, const G& x, size_t i, size_t n, V w, FE fe) {
  * @param rnd random number generator (updated)
  * @param x original graph
  * @param batchSize number of edges to remove
- * @param undirected remove undirected edges?
  * @param i begin vertex
  * @param n number of vertices (range)
+ * @param undirected remove undirected edges?
  * @returns deleted edges {u, v}
  */
 template <class R, class G>
-inline auto generateEdgeDeletions(R& rnd, const G& x, size_t batchSize, bool undirected, size_t i, size_t n) {
+inline auto generateEdgeDeletions(R& rnd, const G& x, size_t batchSize, size_t i, size_t n, bool undirected) {
   using K = typename G::key_type;
   using V = typename G::edge_value_type;
   int retries = 5;
@@ -118,14 +118,14 @@ inline auto generateEdgeDeletions(R& rnd, const G& x, size_t batchSize, bool und
  * @param rnd random number generator (updated)
  * @param x original graph
  * @param batchSize number of edges to add
- * @param undirected add undirected edges?
  * @param i begin vertex
  * @param n number of vertices / range
+ * @param undirected add undirected edges?
  * @param w edge weight
  * @returns inserted edges {u, v, w}
  */
 template <class R, class G, class V>
-inline auto generateEdgeInsertions(R& rnd, const G& x, size_t batchSize, bool undirected, size_t i, size_t n, V w) {
+inline auto generateEdgeInsertions(R& rnd, const G& x, size_t batchSize, size_t i, size_t n, bool undirected, V w) {
   using K = typename G::key_type;
   int retries = 5;
   vector<tuple<K, K, V>> insertions;
