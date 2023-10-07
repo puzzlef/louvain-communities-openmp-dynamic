@@ -37,6 +37,3 @@ export BATCH_INSERTIONS_END="0.0032"
 export BATCH_INSERTIONS_STEP="*=2"
 export NUM_THREADS_MODE="with-batch"
 # ./main.sh "--weak-scaling"
-
-# Signal completion
-curl -X POST "https://maker.ifttt.com/trigger/puzzlef/with/key/${IFTTT_KEY}?value1=$src"
