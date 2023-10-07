@@ -1225,6 +1225,33 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FI fi, FM fm, 
 
 
 
+#pragma region REPEAT SETUP (DYNAMIC)
+/**
+ * Setup the Dynamic Louvain algorithm for multiple runs.
+ * @param qs initial community membership for each run (updated)
+ * @param qvtots initial total vertex weights for each run (updated)
+ * @param qctots initial total community weights for each run (updated)
+ * @param q initial community membership
+ * @param qvtot initial total vertex weights
+ * @param qctot initial total community weights
+ * @param repeat number of runs
+ */
+template <class K, class W>
+inline void louvainSetupInitialsW(vector2d<K>& qs, vector2d<W>& qvtots, vector2d<W>& qctots, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, int repeat) {
+  qs    .resize(repeat);
+  qvtots.resize(repeat);
+  qctots.resize(repeat);
+  for (int r=0; r<repeat; ++r) {
+    qs[r]     = q;
+    qvtots[r] = qvtot;
+    qctots[r] = qctot;
+  }
+}
+#pragma endregion
+
+
+
+
 #pragma region STATIC APPROACH
 /**
  * Obtain the community membership of each vertex with Static Louvain.
@@ -1284,11 +1311,15 @@ inline auto louvainStaticOmp(const G& x, const LouvainOptions& o={}) {
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainNaiveDynamic(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, vector<K> q, vector<W> qvtot, vector<W> qctot, const LouvainOptions& o={}) {
+inline auto louvainNaiveDynamic(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
+  vector2d<K> qs;
+  vector2d<W> qvtots, qctots;
+  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
+  int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
-    vcom = move(q);
-    vtot = move(qvtot);
-    ctot = move(qctot);
+    vcom = move(qs[r]);
+    vtot = move(qvtots[r]);
+    ctot = move(qctots[r]); ++r;
     louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
   };
   auto fm = [ ](auto& vaff, const auto& vcom, const auto& vtot, const auto& ctot, auto& vcs,  auto& vcout) {
@@ -1312,11 +1343,15 @@ inline auto louvainNaiveDynamic(const G& y, const vector<tuple<K, K, V>>& deleti
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainNaiveDynamicOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, vector<K> q, vector<W> qvtot, vector<W> qctot, const LouvainOptions& o={}) {
+inline auto louvainNaiveDynamicOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
+  vector2d<K> qs;
+  vector2d<W> qvtots, qctots;
+  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
+  int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
-    vcom = move(q);
-    vtot = move(qvtot);
-    ctot = move(qctot);
+    vcom = move(qs[r]);
+    vtot = move(qvtots[r]);
+    ctot = move(qctots[r]); ++r;
     louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
   };
   auto fm = [ ](auto& vaff, const auto& vcom, const auto& vtot, const auto& ctot, auto& vcs,  auto& vcout) {
@@ -1462,16 +1497,20 @@ inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vecto
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, vector<K> q, vector<W> qvtot, vector<W> qctot, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   using  B = FLAG;
   size_t S = y.span();
   double R = o.resolution;
   double M = edgeWeight(y)/2;
   vector<B> vertices(S), neighbors(S), communities(S);
+  vector2d<K> qs;
+  vector2d<W> qvtots, qctots;
+  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
+  int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(q);
-    vtot = move(qvtot);
-    ctot = move(qctot);
+    vcom = move(qs[r]);
+    vtot = move(qvtots[r]);
+    ctot = move(qctots[r]); ++r;
     louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
@@ -1496,17 +1535,21 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, vector<K> q, vector<W> qvtot, vector<W> qctot, const LouvainOptions& o={}) {
+inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   using  B = FLAG;
   size_t S = y.span();
   double R = o.resolution;
   double M = edgeWeightOmp(y)/2;
   int    T = omp_get_max_threads();
   vector<B> vertices(S), neighbors(S), communities(S);
+  vector2d<K> qs;
+  vector2d<W> qvtots, qctots;
+  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
+  int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(q);
-    vtot = move(qvtot);
-    ctot = move(qctot);
+    vcom = move(qs[r]);
+    vtot = move(qvtots[r]);
+    ctot = move(qctots[r]); ++r;
     louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
@@ -1592,11 +1635,15 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y,
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, vector<K> q, vector<W> qvtot, vector<W> qctot, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
+  vector2d<K> qs;
+  vector2d<W> qvtots, qctots;
+  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
+  int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(q);
-    vtot = move(qvtot);
-    ctot = move(qctot);
+    vcom = move(qs[r]);
+    vtot = move(qvtots[r]);
+    ctot = move(qctots[r]); ++r;
     louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
@@ -1620,11 +1667,15 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& del
  * @returns louvain result
  */
 template <class FLAG=char, class G, class K, class V, class W>
-inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, vector<K> q, vector<W> qvtot, vector<W> qctot, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
+  vector2d<K> qs;
+  vector2d<W> qvtots, qctots;
+  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
+  int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(q);
-    vtot = move(qvtot);
-    ctot = move(qctot);
+    vcom = move(qs[r]);
+    vtot = move(qvtots[r]);
+    ctot = move(qctots[r]); ++r;
     louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
