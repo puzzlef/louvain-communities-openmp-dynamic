@@ -591,7 +591,7 @@ inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, ve
   W  el = W();
   for (; l<L;) {
     el = W();
-    #pragma omp parallel for schedule(dynamic, 2048) reduction(+:el)
+    #pragma omp parallel for schedule(runtime) reduction(+:el)
     for (K u=0; u<S; ++u) {
       int t = omp_get_thread_num();
       if (!x.hasVertex(u)) continue;
@@ -897,7 +897,7 @@ template <class G, class K, class W>
 inline void louvainAggregateEdgesOmpW(vector<K>& ydeg, vector<K>& yedg, vector<W>& ywei, vector<vector<K>*>& vcs, vector<vector<W>*>& vcout, const G& x, const vector<K>& vcom, const vector<K>& coff, const vector<K>& cedg, const vector<size_t>& yoff) {
   size_t C = coff.size() - 1;
   fillValueOmpU(ydeg, K());
-  #pragma omp parallel for schedule(dynamic, 2048)
+  #pragma omp parallel for schedule(runtime)
   for (K c=0; c<C; ++c) {
     int t = omp_get_thread_num();
     K   n = csrDegree(coff, c);
@@ -1178,6 +1178,8 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FI fi, FM fm, 
         if (p==1) t1 = timeNow();
         bool isFirst = p==0;
         int m = 0;
+        int chunkSize = int(max(size_t(32), min(ceilDiv(isFirst? x.span() : y.span(), size_t(T)), size_t(2048))));
+        omp_set_schedule(omp_sched_dynamic, chunkSize);
         tl += measureDuration([&]() {
           if (isFirst) m = louvainMoveOmpW(ucom, ctot, vaff, vcs, vcout, x, utot, M, R, L, fc, fa);
           else         m = louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, y, vtot, M, R, L, fc);
