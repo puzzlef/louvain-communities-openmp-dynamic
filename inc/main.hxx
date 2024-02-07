@@ -5,6 +5,7 @@
 #include "Graph.hxx"
 #include "update.hxx"
 #include "mtx.hxx"
+#include "snap.hxx"
 #include "duplicate.hxx"
 #include "symmetrize.hxx"
 #include "selfLoop.hxx"
