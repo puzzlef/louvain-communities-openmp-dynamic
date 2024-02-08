@@ -62,16 +62,16 @@ inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
  * @param rows number of rows/vetices in the graph
  * @param size number of lines/edges (temporal) in the graph
  * @param batchFraction fraction of edges to use in each batch
+ * @param numThreads number of threads to use
  */
 template <class G>
-void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batchFraction) {
+void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batchFraction, int numThreads) {
   using K = typename G::key_type;
   using V = typename G::edge_value_type;
   using W = LOUVAIN_WEIGHT_TYPE;
   random_device dev;
   default_random_engine rnd(dev());
   int repeat     = REPEAT_METHOD;
-  int numThreads = MAX_THREADS;
   double M = edgeWeightOmp(x)/2;
   // Follow a specific result logging format, which can be easily parsed later.
   auto glog = [&](const auto& ans, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
@@ -88,12 +88,6 @@ void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batc
   // Get community memberships on original graph (static).
   auto b0 = louvainStaticOmp(x, {5});
   glog(b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
-  auto BM2 = b0.membership;
-  auto BV2 = b0.vertexWeight;
-  auto BC2 = b0.communityWeight;
-  auto BM3 = b0.membership;
-  auto BV3 = b0.vertexWeight;
-  auto BC3 = b0.communityWeight;
   auto BM4 = b0.membership;
   auto BV4 = b0.vertexWeight;
   auto BC4 = b0.communityWeight;
@@ -112,24 +106,11 @@ void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batc
     auto flog = [&](const auto& ans, const char *technique) {
       glog(ans, technique, numThreads, y, M, 0.0, batchFraction);
     };
-    // Find static Louvain.
-    auto b1 = louvainStaticOmp(y, {repeat});
-    flog(b1, "louvainStaticOmp");
-    // Find naive-dynamic Louvain.
-    auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, BM2, BV2, BC2, {repeat});
-    flog(b2, "louvainNaiveDynamicOmp");
-    // Find delta-screening based dynamic Louvain.
-    auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, BM3, BV3, BC3, {repeat});
-    flog(b3, "louvainDynamicDeltaScreeningOmp");
     // Find frontier based dynamic Louvain.
+    omp_set_num_threads(numThreads);
     auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, BM4, BV4, BC4, {repeat});
     flog(b4, "louvainDynamicFrontierOmp");
-    copyValuesOmpW(BM2, b2.membership);
-    copyValuesOmpW(BV2, b2.vertexWeight);
-    copyValuesOmpW(BC2, b2.communityWeight);
-    copyValuesOmpW(BM3, b3.membership);
-    copyValuesOmpW(BV3, b3.vertexWeight);
-    copyValuesOmpW(BC3, b3.communityWeight);
+    omp_set_num_threads(MAX_THREADS);
     copyValuesOmpW(BM4, b4.membership);
     copyValuesOmpW(BV4, b4.vertexWeight);
     copyValuesOmpW(BC4, b4.communityWeight);
@@ -152,14 +133,15 @@ int main(int argc, char **argv) {
   size_t rows = strtoull(argv[2], nullptr, 10);
   size_t size = strtoull(argv[3], nullptr, 10);
   double batchFraction = strtod(argv[5], nullptr);
+  int    numThreads    = strtoul(argv[6], nullptr, 10);
   omp_set_num_threads(MAX_THREADS);
-  LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
+  LOG("OMP_NUM_THREADS=%d\n", numThreads);
   LOG("Loading graph %s ...\n", file);
   DiGraph<K, None, V> x;
   ifstream fstream(file);
   readTemporalOmpW(x, fstream, false, true, rows, size_t(0.90 * size)); LOG(""); print(x); printf(" (90%%)\n");
   x = symmetrizeOmp(x); LOG(""); print(x); printf(" (symmetrize)\n");
-  runExperiment(x, fstream, rows, size, batchFraction);
+  runExperiment(x, fstream, rows, size, batchFraction, numThreads);
   printf("\n");
   return 0;
 }
