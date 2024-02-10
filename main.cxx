@@ -187,11 +187,11 @@ void runExperiment(const G& x) {
         glog(ans, technique, numThreads, y, M, deletionsf, insertionsf);
       };
       // Find static Louvain.
-      auto b1 = louvainStaticOmp(y, {repeat});
-      flog(b1, "louvainStaticOmp");
+      // auto b1 = louvainStaticOmp(y, {repeat});
+      // flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat});
-      flog(b2, "louvainNaiveDynamicOmp");
+      // auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat});
+      // flog(b2, "louvainNaiveDynamicOmp");
       // Find delta-screening based dynamic Louvain.
       auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat});
       flog(b3, "louvainDynamicDeltaScreeningOmp");
