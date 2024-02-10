@@ -88,9 +88,9 @@ void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batc
   // Get community memberships on original graph (static).
   auto b0 = louvainStaticOmp(x, {5});
   glog(b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
-  auto BM2 = b0.membership;
-  auto BV2 = b0.vertexWeight;
-  auto BC2 = b0.communityWeight;
+  // auto BM2 = b0.membership;
+  // auto BV2 = b0.vertexWeight;
+  // auto BC2 = b0.communityWeight;
   auto BM3 = b0.membership;
   auto BV3 = b0.vertexWeight;
   auto BC3 = b0.communityWeight;
@@ -113,20 +113,20 @@ void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batc
       glog(ans, technique, numThreads, y, M, 0.0, batchFraction);
     };
     // Find static Louvain.
-    auto b1 = louvainStaticOmp(y, {repeat});
-    flog(b1, "louvainStaticOmp");
+    // auto b1 = louvainStaticOmp(y, {repeat});
+    // flog(b1, "louvainStaticOmp");
     // Find naive-dynamic Louvain.
-    auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, BM2, BV2, BC2, {repeat});
-    flog(b2, "louvainNaiveDynamicOmp");
+    // auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, BM2, BV2, BC2, {repeat});
+    // flog(b2, "louvainNaiveDynamicOmp");
     // Find delta-screening based dynamic Louvain.
     auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, BM3, BV3, BC3, {repeat});
     flog(b3, "louvainDynamicDeltaScreeningOmp");
     // Find frontier based dynamic Louvain.
     auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, BM4, BV4, BC4, {repeat});
     flog(b4, "louvainDynamicFrontierOmp");
-    copyValuesOmpW(BM2, b2.membership);
-    copyValuesOmpW(BV2, b2.vertexWeight);
-    copyValuesOmpW(BC2, b2.communityWeight);
+    // copyValuesOmpW(BM2, b2.membership);
+    // copyValuesOmpW(BV2, b2.vertexWeight);
+    // copyValuesOmpW(BC2, b2.communityWeight);
     copyValuesOmpW(BM3, b3.membership);
     copyValuesOmpW(BV3, b3.vertexWeight);
     copyValuesOmpW(BC3, b3.communityWeight);
