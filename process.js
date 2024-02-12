@@ -3,8 +3,9 @@ const os = require('os');
 const path = require('path');
 
 const ROMPTH = /^OMP_NUM_THREADS=(\d+)/;
-const RGRAPH = /^Loading graph .*\/(.*?)\.mtx \.\.\./m;
+const RGRAPH = /^Loading graph .*\/(.*?)\.txt \.\.\./m;
 const RORDER = /^order: (\d+) size: (\d+) (?:\[\w+\] )?\{\}/m;
+const RBATCH = /^order: (\d+) size: (\d+) \[directed\] \{\} \(insertions=(\d+)\)/m;
 const RRESLT = /^\{-(.+?)\/\+(.+?) batchf, (.+?) threads\} -> \{(.+?)ms, (.+?)ms mark, (.+?)ms init, (.+?)ms firstpass, (.+?)ms locmove, (.+?)ms aggr, (.+?) aff, (.+?) iters, (.+?) passes, (.+?) modularity\} (.+)/m;
 
 
@@ -54,10 +55,22 @@ function readLogLine(ln, data, state) {
     if (!data.has(graph)) data.set(graph, []);
     state.graph = graph;
   }
+  else if (RBATCH.test(ln)) {
+    var [, order, size] = RBATCH.exec(ln);
+    state.order = parseFloat(order);
+    state.size  = parseFloat(size);
+    state.batch_deletions_fraction  = 0;
+    state.batch_insertions_fraction = 0;
+    state.batch_index = state.batch_index || 0;
+    state.batch_index = ++state.batch_index;
+  }
   else if (RORDER.test(ln)) {
     var [, order, size] = RORDER.exec(ln);
     state.order = parseFloat(order);
     state.size  = parseFloat(size);
+    state.batch_deletions_fraction  = 0;
+    state.batch_insertions_fraction = 0;
+    state.batch_index = -1;
   }
   else if (RRESLT.test(ln)) {
     var [, batch_deletions_fraction, batch_insertions_fraction, num_threads, time, marking_time, initialization_time, first_pass_time, local_moving_phase_time, aggregation_phase_time, affected_vertices, iterations, passes, modularity, technique] = RRESLT.exec(ln);
