@@ -186,17 +186,19 @@ void runExperiment(const G& x) {
       auto flog = [&](const auto& ans, const char *technique) {
         glog(ans, technique, numThreads, y, M, deletionsf, insertionsf);
       };
+      double resolution = 1;
+      double dynamicTolerance = 1e-2 * min(deletionsf + insertionsf, 1.0);
       // Find static Louvain.
       auto b1 = louvainStaticOmp(y, {repeat});
       flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat});
+      auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat, resolution, dynamicTolerance});
       flog(b2, "louvainNaiveDynamicOmp");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat});
+      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat, resolution, dynamicTolerance});
       flog(b3, "louvainDynamicDeltaScreeningOmp");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, B4, VW, CW, {repeat});
+      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, B4, VW, CW, {repeat, resolution, dynamicTolerance});
       flog(b4, "louvainDynamicFrontierOmp");
       #if BATCH_LENGTH>1
       B2 = b2.membership;
@@ -228,7 +230,7 @@ int main(int argc, char **argv) {
   LOG("Loading graph %s ...\n", file);
   DiGraph<K, None, V> x;
   readMtxOmpW(x, file, weighted); LOG(""); println(x);
-  if (!symmetric) { x = symmetrizeOmp(x); LOG(""); print(x); printf(" (symmetrize)\n"); }
+  if (!symmetric) { x = symmetrizeOmp(x); LOG(""); print(x); printf(" (symmetrized)\n"); }
   runExperiment(x);
   printf("\n");
   return 0;
