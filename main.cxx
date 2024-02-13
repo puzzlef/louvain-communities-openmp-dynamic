@@ -112,17 +112,19 @@ void runExperiment(G& x, istream& fstream, size_t rows, size_t size, double batc
     auto flog = [&](const auto& ans, const char *technique) {
       glog(ans, technique, numThreads, y, M, 0.0, batchFraction);
     };
+    double resolution = 1;
+    double dynamicTolerance = 1e-2 * min(batchFraction, 1.0);
     // Find static Louvain.
     auto b1 = louvainStaticOmp(y, {repeat});
     flog(b1, "louvainStaticOmp");
     // Find naive-dynamic Louvain.
-    auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, BM2, BV2, BC2, {repeat});
+    auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, BM2, BV2, BC2, {repeat, resolution, dynamicTolerance});
     flog(b2, "louvainNaiveDynamicOmp");
     // Find delta-screening based dynamic Louvain.
-    auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, BM3, BV3, BC3, {repeat});
+    auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, BM3, BV3, BC3, {repeat, resolution, dynamicTolerance});
     flog(b3, "louvainDynamicDeltaScreeningOmp");
     // Find frontier based dynamic Louvain.
-    auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, BM4, BV4, BC4, {repeat});
+    auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, BM4, BV4, BC4, {repeat, resolution, dynamicTolerance});
     flog(b4, "louvainDynamicFrontierOmp");
     copyValuesOmpW(BM2, b2.membership);
     copyValuesOmpW(BV2, b2.vertexWeight);
@@ -158,7 +160,7 @@ int main(int argc, char **argv) {
   DiGraph<K, None, V> x;
   ifstream fstream(file);
   readTemporalOmpW(x, fstream, false, true, rows, size_t(0.90 * size)); LOG(""); print(x); printf(" (90%%)\n");
-  x = symmetrizeOmp(x); LOG(""); print(x); printf(" (symmetrize)\n");
+  x = symmetrizeOmp(x); LOG(""); print(x); printf(" (symmetrized)\n");
   runExperiment(x, fstream, rows, size, batchFraction);
   printf("\n");
   return 0;
