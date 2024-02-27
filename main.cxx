@@ -63,25 +63,46 @@ inline double getModularity(const G& x, const LouvainResult<K>& a, double M) {
  */
 template <class G, class R, class F>
 inline void runBatches(const G& x, R& rnd, F fn) {
-  using  E = typename G::edge_value_type;
-  double d = BATCH_DELETIONS_BEGIN;
-  double i = BATCH_INSERTIONS_BEGIN;
-  for (int epoch=0;; ++epoch) {
-    for (int r=0; r<REPEAT_BATCH; ++r) {
-      auto y  = duplicate(x);
-      for (int sequence=0; sequence<BATCH_LENGTH; ++sequence) {
-        auto deletions  = generateEdgeDeletions (rnd, y, size_t(d * x.size()/2), 1, x.span()-1, true);
-        auto insertions = generateEdgeInsertions(rnd, y, size_t(i * x.size()/2), 1, x.span()-1, true, E(1));
-        tidyBatchUpdateU(deletions, insertions, y);
-        applyBatchUpdateOmpU(y, deletions, insertions);
-        fn(y, d, deletions, i, insertions, sequence, epoch);
-      }
+  using K = typename G::key_type;
+  using V = typename G::edge_value_type;
+  random_device dev;
+  default_random_engine rng(dev());
+  uniform_int_distribution<long long int> dist(1, 100000000);
+  // Batch update with insertions to merge groups 1 and 2 with cascading updates.
+  V w = V(1000000);
+  int count = 1000;
+  {
+    auto y = duplicate(x);
+    vector<tuple<K, K, V>> deletions;
+    vector<tuple<K, K, V>> insertions;
+    for (int i=0; i<count; ++i) {
+      K u = K(sqrt(dist(rng)));
+      K v = 10000 + K(sqrt(dist(rng)));
+      insertions.push_back(make_tuple(u, v, w));
+      insertions.push_back(make_tuple(v, u, w));
     }
-    if (d>=BATCH_DELETIONS_END && i>=BATCH_INSERTIONS_END) break;
-    d BATCH_DELETIONS_STEP;
-    i BATCH_INSERTIONS_STEP;
-    d = min(d, double(BATCH_DELETIONS_END));
-    i = min(i, double(BATCH_INSERTIONS_END));
+    tidyBatchUpdateU(deletions, insertions, y);
+    applyBatchUpdateOmpU(y, deletions, insertions);
+    fn(y, 0.0, deletions, insertions.size()/double(x.size()), insertions, 0, 0);
+  }
+  // Batch update with to split group 3 with cascading updates.
+  {
+    auto y = duplicate(x);
+    vector<tuple<K, K, V>> deletions;
+    vector<tuple<K, K, V>> insertions;
+    for (int i=0; i<count; ++i) {
+      K u1 = K(sqrt(dist(rng)));
+      K v1 = 20000 + K(sqrt(dist(rng))) / 2;
+      K u2 = 10000 + K(sqrt(dist(rng)));
+      K v2 = 25000 + K(sqrt(dist(rng))) / 2;
+      insertions.push_back(make_tuple(u1, v1, w));
+      insertions.push_back(make_tuple(v1, u1, w));
+      insertions.push_back(make_tuple(u2, v2, w));
+      insertions.push_back(make_tuple(v2, u2, w));
+    }
+    tidyBatchUpdateU(deletions, insertions, y);
+    applyBatchUpdateOmpU(y, deletions, insertions);
+    fn(y, 0.0, deletions, insertions.size()/double(x.size()), insertions, 0, 0);
   }
 }
 
@@ -144,21 +165,23 @@ void runExperiment(const G& x) {
   random_device dev;
   default_random_engine rnd(dev());
   int repeat  = REPEAT_METHOD;
-  int retries = 5;
   double M = edgeWeightOmp(x)/2;
   // Follow a specific result logging format, which can be easily parsed later.
   auto glog = [&](const auto& ans, const char *technique, int numThreads, const auto& y, auto M, auto deletionsf, auto insertionsf) {
     printf(
       "{-%.3e/+%.3e batchf, %03d threads} -> "
-      "{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity} %s\n",
+      "{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms firstpass, %09.1fms locmove, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity, %zu/%zu disconnected} %s\n",
       double(deletionsf), double(insertionsf), numThreads,
       ans.time, ans.markingTime, ans.initializationTime, ans.firstPassTime, ans.localMoveTime, ans.aggregationTime,
-      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(y, ans, M), technique
+      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(y, ans, M),
+      countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
+      communities(x, ans.membership).size(), technique
     );
   };
   // Get community memberships on original graph (static).
   auto b0 = louvainStaticOmp(x, {5});
   glog(b0, "louvainStaticOmpOriginal", MAX_THREADS, x, M, 0.0, 0.0);
+  printf("\n");
   #if BATCH_LENGTH>1
   vector<K> B2, B3, B4;
   vector<W> VW, CW;
@@ -192,14 +215,20 @@ void runExperiment(const G& x) {
       auto b1 = louvainStaticOmp(y, {repeat});
       flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat, resolution, dynamicTolerance});
-      flog(b2, "louvainNaiveDynamicOmp");
+      auto b21 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat});
+      flog(b21, "louvainNaiveDynamicOmp");
+      auto b22 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat, resolution, dynamicTolerance});
+      flog(b22, "louvainNaiveDynamicOmpAdjusted");
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat, resolution, dynamicTolerance});
-      flog(b3, "louvainDynamicDeltaScreeningOmp");
+      auto b31 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat});
+      flog(b31, "louvainDynamicDeltaScreeningOmp");
+      auto b32 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat, resolution, dynamicTolerance});
+      flog(b32, "louvainDynamicDeltaScreeningOmpAdjusted");
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, B4, VW, CW, {repeat, resolution, dynamicTolerance});
-      flog(b4, "louvainDynamicFrontierOmp");
+      auto b41 = louvainDynamicFrontierOmp(y, deletions, insertions, B4, VW, CW, {repeat});
+      flog(b41, "louvainDynamicFrontierOmp");
+      auto b42 = louvainDynamicFrontierOmp(y, deletions, insertions, B4, VW, CW, {repeat, resolution, dynamicTolerance});
+      flog(b42, "louvainDynamicFrontierOmpAdjusted");
       #if BATCH_LENGTH>1
       B2 = b2.membership;
       B3 = b3.membership;
@@ -208,7 +237,63 @@ void runExperiment(const G& x) {
       CW = b1.communityWeight;
       #endif
     });
+    printf("\n");
   });
+}
+
+
+/**
+ * Create a sample graph with three groups of 100 vertices each (1 weakly connected).
+ * @param degree average degree of vertices
+ * @returns sample graph
+ */
+template <class K, class V>
+DiGraph<K, None, V> createSampleGraph(int degree) {
+  random_device dev;
+  default_random_engine rng(dev());
+  uniform_int_distribution<long long int> dist(1, 100000000);
+  DiGraph<K, None, V> x;
+  // Add all vertices.
+  for (K u=1; u<=30000; ++u)
+    x.addVertex(u);
+  // Add edges within group 1.
+  for (K u=1; u<=10000; ++u) {
+    for (int i=0; i<degree; ++i) {
+      K v = K(sqrt(dist(rng)));
+      x.addEdge(u, v, 1);
+    }
+  }
+  // Add edges within group 2.
+  for (K u=10001; u<=20000; ++u) {
+    for (int i=0; i<degree; ++i) {
+      K v = 10000 + K(sqrt(dist(rng)));
+      x.addEdge(u, v, 1);
+    }
+  }
+  // Add edges within one half of group 3.
+  for (K u=20001; u<=25000; ++u) {
+    for (int i=0; i<degree; ++i) {
+      K v = 20000 + K(sqrt(dist(rng))) / 2;
+      x.addEdge(u, v, 1);
+    }
+  }
+  // Add edges within the other half of group 3.
+  for (K u=25001; u<=30000; ++u) {
+    for (int i=0; i<degree; ++i) {
+      K v = 25000 + K(sqrt(dist(rng))) / 2;
+      x.addEdge(u, v, 1);
+    }
+  }
+  // Add edges between the two halves of group 3.
+  for (K i=1; i<4000*degree; ++i) {
+    K u = 20000 + K(sqrt(dist(rng))) / 2;
+    K v = 25000 + K(sqrt(dist(rng))) / 2;
+    x.addEdge(u, v, 1);
+  }
+  // Update and symmetrize.
+  updateOmpU(x);
+  x = symmetrizeOmp(x);
+  return x;
 }
 
 
@@ -222,15 +307,11 @@ int main(int argc, char **argv) {
   using K = uint32_t;
   using V = TYPE;
   install_sigsegv();
-  char *file     = argv[1];
-  bool symmetric = argc>2? stoi(argv[2]) : false;
-  bool weighted  = argc>3? stoi(argv[3]) : false;
   omp_set_num_threads(MAX_THREADS);
   LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
-  LOG("Loading graph %s ...\n", file);
-  DiGraph<K, None, V> x;
-  readMtxOmpW(x, file, weighted); LOG(""); println(x);
-  if (!symmetric) { x = symmetrizeOmp(x); LOG(""); print(x); printf(" (symmetrized)\n"); }
+  LOG("Creating sample graph ...\n");
+  DiGraph<K, None, V> x = createSampleGraph<K, V>(10);
+  LOG(""); println(x);
   runExperiment(x);
   printf("\n");
   return 0;
