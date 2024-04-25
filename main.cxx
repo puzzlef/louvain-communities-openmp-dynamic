@@ -190,14 +190,26 @@ void runExperiment(const G& x) {
       auto b1 = louvainStaticOmp(y, {repeat});
       flog(b1, "louvainStaticOmp");
       // Find naive-dynamic Louvain.
-      auto b2 = louvainNaiveDynamicOmp(y, deletions, insertions, B2, VW, CW, {repeat});
-      flog(b2, "louvainNaiveDynamicOmp");
+      {
+        auto b20 = louvainNaiveDynamicOmp<false>(y, deletions, insertions, B2, VW, CW, {repeat});
+        flog(b20, "louvainNaiveDynamicOmp");
+        auto b21 = louvainNaiveDynamicOmp<true> (y, deletions, insertions, B2, VW, CW, {repeat});
+        flog(b21, "louvainNaiveDynamicOmpAuxiliary");
+      }
       // Find delta-screening based dynamic Louvain.
-      auto b3 = louvainDynamicDeltaScreeningOmp(y, deletions, insertions, B3, VW, CW, {repeat});
-      flog(b3, "louvainDynamicDeltaScreeningOmp");
+      {
+        auto b30 = louvainDynamicDeltaScreeningOmp<false>(y, deletions, insertions, B3, VW, CW, {repeat});
+        flog(b30, "louvainDynamicDeltaScreeningOmp");
+        auto b31 = louvainDynamicDeltaScreeningOmp<true> (y, deletions, insertions, B3, VW, CW, {repeat});
+        flog(b31, "louvainDynamicDeltaScreeningOmpAuxiliary");
+      }
       // Find frontier based dynamic Louvain.
-      auto b4 = louvainDynamicFrontierOmp(y, deletions, insertions, B4, VW, CW, {repeat});
-      flog(b4, "louvainDynamicFrontierOmp");
+      {
+        auto b40 = louvainDynamicFrontierOmp<false>(y, deletions, insertions, B4, VW, CW, {repeat});
+        flog(b40, "louvainDynamicFrontierOmp");
+        auto b41 = louvainDynamicFrontierOmp<true> (y, deletions, insertions, B4, VW, CW, {repeat});
+        flog(b41, "louvainDynamicFrontierOmpAuxiliary");
+      }
       #if BATCH_LENGTH>1
       B2 = b2.membership;
       B3 = b3.membership;

@@ -1006,7 +1006,7 @@ inline void louvainAggregateOmpW(vector<size_t>& yoff, vector<K>& ydeg, vector<K
  * @param fa is vertex allowed to be updated? (u)
  * @returns louvain result
  */
-template <bool DYNAMIC=false, class FLAG=char, class G, class FI, class FM, class FA>
+template <bool AUX=false, bool DYNAMIC=false, class FLAG=char, class G, class FI, class FM, class FA>
 inline auto louvainInvoke(const G& x, const LouvainOptions& o, FI fi, FM fm, FA fa) {
   using  K = typename G::key_type;
   using  W = LOUVAIN_WEIGHT_TYPE;
@@ -1027,8 +1027,8 @@ inline auto louvainInvoke(const G& x, const LouvainOptions& o, FI fi, FM fm, FA 
   vector<K> vcs;       // Hashtable keys
   vector<W> vcout(S);  // Hashtable values
   if (!DYNAMIC) ucom.resize(S);
-  if (!DYNAMIC) utot.resize(S);
-  if (!DYNAMIC) ctot.resize(S);
+  if (!AUX || !DYNAMIC) utot.resize(S);
+  if (!AUX || !DYNAMIC) ctot.resize(S);
   size_t Z = max(size_t(o.aggregationTolerance * X), X);
   size_t Y = max(size_t(o.aggregationTolerance * Z), Z);
   DiGraphCsr<K, None, None, K> cv(S, S);  // CSR for community vertices
@@ -1116,7 +1116,7 @@ inline auto louvainInvoke(const G& x, const LouvainOptions& o, FI fi, FM fm, FA 
  * @param fa is vertex allowed to be updated? (u)
  * @returns louvain result
  */
-template <bool DYNAMIC=false, class FLAG=char, class G, class FI, class FM, class FA>
+template <bool AUX=false, bool DYNAMIC=false, class FLAG=char, class G, class FI, class FM, class FA>
 inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FI fi, FM fm, FA fa) {
   using  K = typename G::key_type;
   using  W = LOUVAIN_WEIGHT_TYPE;
@@ -1140,8 +1140,8 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FI fi, FM fm, 
   vector<vector<K>*> vcs(T);    // Hashtable keys
   vector<vector<W>*> vcout(T);  // Hashtable values
   if (!DYNAMIC) ucom.resize(S);
-  if (!DYNAMIC) utot.resize(S);
-  if (!DYNAMIC) ctot.resize(S);
+  if (!AUX || !DYNAMIC) utot.resize(S);
+  if (!AUX || !DYNAMIC) ctot.resize(S);
   louvainAllocateHashtablesW(vcs, vcout, S);
   size_t Z = max(size_t(o.aggregationTolerance * X), X);
   size_t Y = max(size_t(o.aggregationTolerance * Z), Z);
@@ -1269,7 +1269,7 @@ inline auto louvainStatic(const G& x, const LouvainOptions& o={}) {
     fillValueU(vaff, FLAG(1));
   };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvoke<false, FLAG>(x, o, fi, fm, fa);
+  return louvainInvoke<false, false, FLAG>(x, o, fi, fm, fa);
 }
 
 
@@ -1290,7 +1290,7 @@ inline auto louvainStaticOmp(const G& x, const LouvainOptions& o={}) {
     fillValueOmpU(vaff, FLAG(1));
   };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvokeOmp<false, FLAG>(x, o, fi, fm, fa);
+  return louvainInvokeOmp<false, false, FLAG>(x, o, fi, fm, fa);
 }
 #endif
 #pragma endregion
@@ -1310,7 +1310,7 @@ inline auto louvainStaticOmp(const G& x, const LouvainOptions& o={}) {
  * @param o louvain options
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class V, class W>
+template <bool AUX=false, class FLAG=char, class G, class K, class V, class W>
 inline auto louvainNaiveDynamic(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
@@ -1318,15 +1318,22 @@ inline auto louvainNaiveDynamic(const G& y, const vector<tuple<K, K, V>>& deleti
   int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
     vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+    if (AUX) {
+      vtot = move(qvtots[r]);
+      ctot = move(qctots[r]);
+      louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+    }
+    else {
+      louvainVertexWeightsW(vtot, y);
+      louvainInitializeW(vcom, ctot, y, vtot);
+    }
+    ++r;
   };
   auto fm = [ ](auto& vaff, const auto& vcom, const auto& vtot, const auto& ctot, auto& vcs,  auto& vcout) {
     fillValueU(vaff, FLAG(1));
   };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvoke<true, FLAG>(y, o, fi, fm, fa);
+  return louvainInvoke<AUX, true, FLAG>(y, o, fi, fm, fa);
 }
 
 
@@ -1342,7 +1349,7 @@ inline auto louvainNaiveDynamic(const G& y, const vector<tuple<K, K, V>>& deleti
  * @param o louvain options
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class V, class W>
+template <bool AUX=false, class FLAG=char, class G, class K, class V, class W>
 inline auto louvainNaiveDynamicOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
@@ -1350,15 +1357,24 @@ inline auto louvainNaiveDynamicOmp(const G& y, const vector<tuple<K, K, V>>& del
   int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
     vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+    if (AUX) {
+      vtot = move(qvtots[r]);
+      ctot = move(qctots[r]);
+      louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+    }
+    else {
+      assert(vtot.data());
+      assert(ctot.data());
+      louvainVertexWeightsOmpW(vtot, y);
+      louvainInitializeOmpW(vcom, ctot, y, vtot);
+    }
+    ++r;
   };
   auto fm = [ ](auto& vaff, const auto& vcom, const auto& vtot, const auto& ctot, auto& vcs,  auto& vcout) {
     fillValueOmpU(vaff, FLAG(1));
   };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvokeOmp<true, FLAG>(y, o, fi, fm, fa);
+  return louvainInvokeOmp<AUX, true, FLAG>(y, o, fi, fm, fa);
 }
 #endif
 #pragma endregion
@@ -1496,7 +1512,7 @@ inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vecto
  * @param o louvain options
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class V, class W>
+template <bool AUX=false, class FLAG=char, class G, class K, class V, class W>
 inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   using  B = FLAG;
   size_t S = y.span();
@@ -1509,16 +1525,23 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>
   int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
     vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+    if (AUX) {
+      vtot = move(qvtots[r]);
+      ctot = move(qctots[r]);
+      louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+    }
+    else {
+      louvainVertexWeightsW(vtot, y);
+      louvainInitializeW(vcom, ctot, y, vtot);
+    }
+    ++r;
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
     louvainAffectedVerticesDeltaScreeningW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesW(vaff, vertices);
   };
   auto fa = [&](auto u) { return vertices[u] == B(1); };
-  return louvainInvoke<true, FLAG>(y, o, fi, fm, fa);
+  return louvainInvoke<AUX, true, FLAG>(y, o, fi, fm, fa);
 }
 
 
@@ -1534,7 +1557,7 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>
  * @param o louvain options
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class V, class W>
+template <bool AUX=false, class FLAG=char, class G, class K, class V, class W>
 inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   using  B = FLAG;
   size_t S = y.span();
@@ -1548,16 +1571,23 @@ inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K,
   int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
     vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+    if (AUX) {
+      vtot = move(qvtots[r]);
+      ctot = move(qctots[r]);
+      louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+    }
+    else {
+      louvainVertexWeightsOmpW(vtot, y);
+      louvainInitializeOmpW(vcom, ctot, y, vtot);
+    }
+    ++r;
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
     louvainAffectedVerticesDeltaScreeningOmpW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
     copyValuesOmpW(vaff, vertices);
   };
   auto fa = [&](auto u) { return vertices[u] == B(1); };
-  return louvainInvokeOmp<true, FLAG>(y, o, fi, fm, fa);
+  return louvainInvokeOmp<AUX, true, FLAG>(y, o, fi, fm, fa);
 }
 #endif
 #pragma endregion
@@ -1634,7 +1664,7 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y,
  * @param o louvain options
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class V, class W>
+template <bool AUX=false, class FLAG=char, class G, class K, class V, class W>
 inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
@@ -1642,15 +1672,22 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& del
   int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
     vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+    if (AUX) {
+      vtot = move(qvtots[r]);
+      ctot = move(qctots[r]);
+      louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+    }
+    else {
+      louvainVertexWeightsW(vtot, y);
+      louvainInitializeW(vcom, ctot, y, vtot);
+    }
+    ++r;
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
     louvainAffectedVerticesFrontierW(vaff, y, deletions, insertions, vcom);
   };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvoke<true, FLAG>(y, o, fi, fm, fa);
+  return louvainInvoke<AUX, true, FLAG>(y, o, fi, fm, fa);
 }
 
 
@@ -1666,7 +1703,7 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& del
  * @param o louvain options
  * @returns louvain result
  */
-template <class FLAG=char, class G, class K, class V, class W>
+template <bool AUX=false, class FLAG=char, class G, class K, class V, class W>
 inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
@@ -1674,15 +1711,22 @@ inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& 
   int  r  = 0;
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
     vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+    if (AUX) {
+      vtot = move(qvtots[r]);
+      ctot = move(qctots[r]);
+      louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+    }
+    else {
+      louvainVertexWeightsOmpW(vtot, y);
+      louvainInitializeOmpW(vcom, ctot, y, vtot);
+    }
+    ++r;
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
     louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom);
   };
   auto fa = [ ](auto u) { return true; };
-  return louvainInvokeOmp<true, FLAG>(y, o, fi, fm, fa);
+  return louvainInvokeOmp<AUX, true, FLAG>(y, o, fi, fm, fa);
 }
 #endif
 #pragma endregion

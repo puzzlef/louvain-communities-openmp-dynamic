@@ -9,21 +9,22 @@ if [[ "$DOWNLOAD" != "0" ]]; then
   rm -rf $src
   git clone https://github.com/puzzlef/$src
   cd $src
+  git checkout adjust-auxiliary-info
 fi
 
 # Fixed config
 : "${TYPE:=float}"
 : "${MAX_THREADS:=64}"
-: "${REPEAT_BATCH:=5}"
+: "${REPEAT_BATCH:=1}"
 : "${REPEAT_METHOD:=1}"
 # Parameter sweep for batch (randomly generated)
 : "${BATCH_UNIT:=%}"
 : "${BATCH_LENGTH:=1}"
-: "${BATCH_DELETIONS_BEGIN:=0.00000005}"
-: "${BATCH_DELETIONS_END:=0.05}"
+: "${BATCH_DELETIONS_BEGIN:=0.00000002}"
+: "${BATCH_DELETIONS_END:=0.02}"
 : "${BATCH_DELETIONS_STEP:=*=10}"
-: "${BATCH_INSERTIONS_BEGIN:=0.00000005}"
-: "${BATCH_INSERTIONS_END:=0.05}"
+: "${BATCH_INSERTIONS_BEGIN:=0.00000008}"
+: "${BATCH_INSERTIONS_END:=0.08}"
 : "${BATCH_INSERTIONS_STEP:=*=10}"
 # Parameter sweep for number of threads
 : "${NUM_THREADS_MODE:=all}"
@@ -52,7 +53,6 @@ DEFINES=(""
 
 # Run
 g++ ${DEFINES[*]} -std=c++17 -O3 -fopenmp main.cxx
-# stdbuf --output=L ./a.out ~/Data/web-Stanford.mtx    0 0 2>&1 | tee -a "$out"
 stdbuf --output=L ./a.out ~/Data/indochina-2004.mtx  0 0 2>&1 | tee -a "$out"
 stdbuf --output=L ./a.out ~/Data/arabic-2005.mtx     0 0 2>&1 | tee -a "$out"
 stdbuf --output=L ./a.out ~/Data/uk-2005.mtx         0 0 2>&1 | tee -a "$out"
