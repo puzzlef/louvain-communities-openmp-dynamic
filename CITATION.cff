@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Sahu
+    given-names: Subhajit
+    orcid: https://orcid.org/0000-0001-5140-6578
+title: "DF Louvain: Fast Incrementally Expanding Approach for Community Detection on Dynamic Graphs"
+version: 1.0.0
+doi: 10.48550/arXiv.2404.19634
+date-released: 2024-04-30
