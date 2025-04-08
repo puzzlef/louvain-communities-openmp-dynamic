@@ -99,3 +99,4 @@ Note that each branch in this repository contains code for a specific experiment
 
 [![](https://i.imgur.com/3abceEx.png)](https://www.youtube.com/watch?v=yqO7wVBTuLw&pp)<br>
 [![ORG](https://img.shields.io/badge/org-puzzlef-green?logo=Org)](https://puzzlef.github.io)
+![](https://ga-beacon.deno.dev/G-KD28SG54JQ:hbAybl6nQFOtmVxW4if3xw/github.com/puzzlef/louvain-communities-openmp-dynamic)
